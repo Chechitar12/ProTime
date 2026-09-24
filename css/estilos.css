@@ -1844,3 +1844,25 @@ aside a i {
         height: calc(100dvh - 108px);
     }
 }
+
+
+body.web-mode #phone,body.web-mode #app{width:100%;min-height:100vh;overflow:visible}
+body.web-mode .pt-header{border-radius:0}
+.web-page{max-width:1500px;margin:0 auto;padding:22px 20px 42px;color:#173e52}
+.web-heading h1{margin:0;font-size:25px;color:#123e53}.web-heading p{color:#587181;margin:8px 0 20px}
+.web-filters,.web-toolbar{display:flex;gap:11px;flex-wrap:wrap;align-items:end;background:white;border:1px solid #d8e4e9;border-radius:12px;padding:14px;margin-bottom:13px}
+.web-filters label{display:flex;flex-direction:column;gap:5px;min-width:160px;flex:1;font-size:13px;font-weight:700}
+.web-filters input,.web-filters select,.web-form-grid input,.web-form-grid textarea,.web-modal input,.web-modal textarea,.web-modal select{width:100%;border:1px solid #b7cbd3;border-radius:7px;padding:10px;background:#fff;color:#163e53}
+.web-btn{border:0;border-radius:8px;background:#126678;color:white;padding:11px 15px;font-weight:700;cursor:pointer}
+.web-btn.danger{background:#a34247}.web-btn:disabled{opacity:.48;cursor:not-allowed}
+.web-count{font-size:13px;color:#557381}.web-scroll{overflow:auto;background:#fff;border:1px solid #d8e4e9;border-radius:12px;max-height:65vh}
+.web-table{border-collapse:collapse;min-width:2100px;width:100%;font-size:13px}.web-table th,.web-table td{padding:10px 11px;text-align:left;vertical-align:top;border-bottom:1px solid #e0e9ed;max-width:260px;overflow-wrap:anywhere}
+.web-table th{white-space:nowrap;position:sticky;top:0;background:#eaf3f6;z-index:1}.web-pill{display:inline-block;border-radius:20px;padding:5px 9px;background:#dceef2;white-space:nowrap}.web-inactive{background:#f9eded}.web-empty{text-align:center;color:#68818b;padding:30px!important}
+.web-text{border:0;background:transparent;color:#126678;font-weight:700;text-decoration:underline;cursor:pointer;padding:3px}.web-text:disabled{opacity:.4}.web-table input[type=checkbox],#webAll{width:18px;height:18px;accent-color:#126678}
+.web-modal-wrap{position:fixed;inset:0;background:#102c4099;z-index:1100;display:grid;place-items:center;padding:14px}.web-modal{width:min(710px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:14px;padding:23px;color:#173e52;box-shadow:0 22px 70px #071e3266}.web-modal h2{margin:0 0 18px}
+.web-modal label{display:block;margin-bottom:12px;font-weight:700;font-size:13px}.web-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px}.web-form-grid .wide{grid-column:1/-1}.web-modal textarea{min-height:75px;resize:vertical}.web-modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}.web-modal-actions button{border:0;padding:10px 14px;border-radius:8px;cursor:pointer}.web-modal-actions .web-btn{color:white}.web-history{max-height:48vh;overflow:auto}.web-history p{border-bottom:1px solid #d8e4e9;padding:8px}
+#webError{color:#aa3535;font-size:13px}
+@media(max-width:650px){.web-page{padding:16px 12px}.web-form-grid{grid-template-columns:1fr}.web-form-grid .wide{grid-column:auto}.web-toolbar .web-btn{flex:1}}
+.web-pill.web-pending{background:#fff1cb;color:#765100}.web-pill.web-progress{background:#dcecff;color:#14549b}.web-pill.web-validated{background:#d8f2df;color:#17613a}.web-pill.web-rejected{background:#fae1e1;color:#9e2a34}.web-pill.web-modified{background:#ede3ff;color:#6337a2}.web-detail{white-space:pre-wrap}.web-toolbar span{margin-right:auto;color:#476575;font-weight:700}
+.web-icon{display:inline-grid;place-items:center;width:34px;height:34px;border:1px solid #bfd4dd;background:#f5fafb;color:#17667a;border-radius:8px;font-size:22px;cursor:pointer;vertical-align:middle}.web-icon-check{color:#148348}.web-icon-trash{color:#ac4143}.web-icon svg{width:19px;height:19px}.web-icon:disabled{opacity:.3;cursor:not-allowed}
+.web-notice{position:fixed;right:20px;bottom:20px;z-index:1300;max-width:min(420px,calc(100% - 40px));background:#fff3df;border:2px solid #ec9836;border-left:7px solid #ea8722;color:#704016;border-radius:12px;padding:15px 18px;box-shadow:0 12px 28px #27201838;font-weight:700}
