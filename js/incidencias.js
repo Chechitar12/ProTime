@@ -1,12 +1,12 @@
 const Incidencias = {
     all() {
-        return DB.get('pt_incidencias', []);
+        return DB.get('pt_incidencias_v3', []);
     },
 
     save(incidencia) {
         const incidencias = this.all();
         incidencias.unshift(incidencia);
-        DB.set('pt_incidencias', incidencias);
+        DB.set('pt_incidencias_v3', incidencias);
     },
 
     byId(id) {
@@ -20,6 +20,6 @@ const Incidencias = {
                 : incidencia;
         });
 
-        DB.set('pt_incidencias', actualizadas);
+        DB.set('pt_incidencias_v3', actualizadas);
     }
 };
