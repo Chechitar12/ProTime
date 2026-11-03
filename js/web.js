@@ -221,7 +221,10 @@ function webDraw(validation){
         else webHistory(x);
     };
 }
-function webClose(){document.getElementById('webModal')?.remove();webModal=null}
+function webClose(){
+    if(typeof PlanIA!=='undefined')PlanIA.close();
+    document.getElementById('webModal')?.remove();webModal=null;
+}
 function webShow(title,content,submit){
     webClose();const wrap=document.createElement('div');wrap.id='webModal';wrap.className='web-modal-wrap';
     wrap.innerHTML=`<div class="web-modal" role="dialog" aria-modal="true" aria-label="${webEsc(title)}"><h2>${webEsc(title)}</h2>
@@ -312,11 +315,12 @@ function webValidate(rows){
 }
 function webPlan(x){
     if(webStatus(x)!=='Validado'||!webNeedsPlan(x))return;
-    webShow('Asignar plan de acción · '+x.id,
-        `<p>Área: ${webEsc(x.areaResponsable||'—')} · Responsable: ${webEsc(x.responsableValidacion||'—')}</p>
+    webShow('Definir plan de acción',
+        `${PlanIA.header(x)}<div data-ai-anchor></div><div data-ai-fields>
         <label>Plan de acción<select name="planTipo" required><option value="">Selecciona un plan</option><option>Capacitación al personal</option><option>Coordinar traslado o transporte</option><option>Asignar más unidades</option><option>Mejorar el proceso de cosecha</option><option>Otro</option></select></label>
         <label>Descripción del plan de acción<textarea name="planDescripcion" required placeholder="Describe las acciones que se realizarán"></textarea></label>
-        <label>Fecha propuesta de solución<input name="fechaEstimada" type="date" required value="${webEsc(x.fechaEstimada||new Date().toLocaleDateString('en-CA',{timeZone:'America/Lima'}))}"></label>`,d=>{
+        <label>Fecha propuesta de solución<input name="fechaEstimada" type="date" required value="${webEsc(x.fechaEstimada||new Date().toLocaleDateString('en-CA',{timeZone:'America/Lima'}))}"></label>
+        <p class="ai-save-notice">Al guardar, la incidencia pasa a <strong>En proceso</strong>.</p></div>`,d=>{
         const planTipo=String(d.get('planTipo')||'').trim(),planDescripcion=String(d.get('planDescripcion')||'').trim();
         const planAccion=planTipo&&planDescripcion?`${planTipo}: ${planDescripcion}`:'',fechaEstimada=String(d.get('fechaEstimada')||'');
         if(!planAccion||!webValidDate(fechaEstimada)){document.getElementById('webError').textContent='Completa el plan y la fecha propuesta.';return}
@@ -324,13 +328,16 @@ function webPlan(x){
             historialWeb:webLog(x,'Plan de acción',`Plan: ${planAccion}; fecha propuesta: ${fechaEstimada}`,'En proceso')});
         webClose();webDraw(true);webNotice('Plan asignado. La incidencia está En proceso.');
     });
+    PlanIA.attach(x,'plan');
 }
 function webSolve(x){
     if(webStatus(x)!=='En proceso'&&!(webStatus(x)==='Validado'&&!webNeedsPlan(x)))return;
     const defaultDate=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
-    webShow('Registrar solución aplicada · '+x.id,
-        `${webNeedsPlan(x)?`<p>Plan: ${webEsc(x.planAccion||'—')}</p>`:''}<label>Solución aplicada<textarea name="solucionAplicada" required></textarea></label>
-        <label>Fecha y hora de solución<input name="fechaSolucion" type="datetime-local" value="${defaultDate}" required></label>`,d=>{
+    webShow('Registrar solución aplicada',
+        `${PlanIA.header(x)}<div data-ai-anchor></div><div data-ai-fields>
+        ${webNeedsPlan(x)?`<p>Plan: ${webEsc(x.planAccion||'—')}</p>`:''}<label>Solución aplicada<textarea name="solucionAplicada" required></textarea></label>
+        <label>Fecha y hora de solución<input name="fechaSolucion" type="datetime-local" value="${defaultDate}" required></label>
+        <p class="ai-save-notice">Registra únicamente acciones que ya se realizaron. Al guardar, la incidencia pasa a <strong>Solucionado</strong>.</p></div>`,d=>{
         const solucionAplicada=String(d.get('solucionAplicada')||'').trim();
         if(!solucionAplicada){document.getElementById('webError').textContent='Describe la solución aplicada.';return}
         const fechaValue=String(d.get('fechaSolucion')||'');
@@ -340,6 +347,7 @@ function webSolve(x){
             historialWeb:webLog(x,'Solución',`Solución aplicada: ${solucionAplicada}; fecha: ${fechaSolucion}`,'Solucionado')});
         webClose();webDraw(true);webNotice('Incidencia solucionada y registrada en el historial.');
     });
+    PlanIA.attach(x,'solution');
 }
 function webHistory(x){
     const items=x.historialWeb||[];

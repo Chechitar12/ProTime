@@ -1,14 +1,17 @@
 // Increment this version whenever an application asset changes.
 const CACHE_PREFIX = `protime:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 const APP_FILES = [
     './',
     './index.html',
     './css/estilos.css',
+    './css/ai-plan.css',
     './js/storage.js',
     './js/incidencias.js',
     './js/app.js',
     './js/web.js',
+    './js/ai-config.js',
+    './js/ai-plan.js',
     './js/voice.js',
     './js/mapa.js',
     './js/pwa.js',
