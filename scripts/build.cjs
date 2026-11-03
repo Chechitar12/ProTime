@@ -4,9 +4,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const ROOT = path.resolve(__dirname,'..');
-const ASSETS = ['index.html','manifest.webmanifest','sw.js','css/estilos.css','css/ai-plan.css',
-    'js/storage.js','js/incidencias.js','js/app.js','js/web.js','js/ai-plan.js',
-    'js/voice.js','js/mapa.js','js/pwa.js','icons/icon-192.png','icons/icon-512.png',
+const ASSETS = ['index.html','manifest.webmanifest','sw.js','css/estilos.css','css/ai-plan.css','css/mapa.css',
+    'js/storage.js','js/incidencias.js','js/parcelas.js','js/app.js','js/web.js','js/ai-plan.js',
+    'js/voice.js','js/mapa.js','js/google-maps.js','js/pwa.js','icons/icon-192.png','icons/icon-512.png',
     'icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 
 function build({sourceDir=ROOT,outputDir=path.join(ROOT,'dist'),env=process.env,requireKey=false}={}) {
@@ -29,10 +29,15 @@ function build({sourceDir=ROOT,outputDir=path.join(ROOT,'dist'),env=process.env,
     fs.writeFileSync(path.join(destination,'js/ai-config.js'),
         '// Generado durante el build. Estos valores son públicos en el navegador.\n'+
         `const PROTIME_AI_CONFIG = Object.freeze(${JSON.stringify(config,null,4)});\n`);
+    const mapConfig = {apiKey:String(env.GOOGLE_MAPS_API_KEY||'').trim(),
+        mapId:String(env.GOOGLE_MAPS_MAP_ID||'DEMO_MAP_ID').trim()||'DEMO_MAP_ID'};
+    fs.writeFileSync(path.join(destination,'js/map-config.js'),
+        '// Generado desde GOOGLE_MAPS_API_KEY y GOOGLE_MAPS_MAP_ID. Configuración pública del navegador.\n'+
+        `const PROTIME_MAP_CONFIG = Object.freeze(${JSON.stringify(mapConfig,null,4)});\n`);
     fs.writeFileSync(path.join(destination,'.nojekyll'),'');
     // También cambia el worker si cambian la clave o el modelo: evita cachés desactualizados.
     const hash = crypto.createHash('sha256');
-    for (const asset of [...ASSETS,'js/ai-config.js']) hash.update(asset).update(fs.readFileSync(path.join(destination,asset)));
+    for (const asset of [...ASSETS,'js/ai-config.js','js/map-config.js']) hash.update(asset).update(fs.readFileSync(path.join(destination,asset)));
     const version = hash.digest('hex').slice(0,16);
     const worker = path.join(destination,'sw.js');
     const original = fs.readFileSync(worker,'utf8');

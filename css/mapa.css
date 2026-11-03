@@ -1,0 +1,22 @@
+.geo-field {display:block}
+.geo-field[data-location="pending"] {background:#fff7e8;border-color:#efd5a7;color:#845b20}
+.geo-coordinates {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.geo-coordinates label {margin:0;font-size:11px}
+.geo-coordinates input {margin-top:4px;padding:8px;font-variant-numeric:tabular-nums;background:#fff}
+.map-pending {padding:10px 13px;border:1px solid #ecd6a9;border-radius:8px;background:#fff7e8;color:#7b5a21;font-size:13px;line-height:1.5}
+.map-provider-status {font-size:12px;color:#507181}
+.map-google-host {position:absolute;inset:0}
+.incident-map>[hidden] {display:none!important}
+.incident-map[data-provider="google"] {cursor:default;touch-action:auto}
+.map-google-pin {width:24px;height:24px;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px #132b3d99;cursor:pointer;padding:0}
+.map-google-pin.low {background:#29a65b}
+.map-google-pin.medium {background:#e59b19}
+.map-google-pin.high {background:#d84343}
+.map-google-pin:focus-visible {outline:3px solid #154d69;outline-offset:3px}
+.map-popup {width:min(300px,calc(100% - 16px));padding:15px;max-height:calc(100% - 16px);overflow:auto}
+.map-details {color:#20495c;font:13px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
+.map-details strong {display:block;padding-right:16px;font-size:15px}
+.map-details dl {display:grid;grid-template-columns:minmax(90px,.8fr) minmax(0,1fr);gap:8px 12px;margin:12px 0 0;font-size:12px}
+.map-details dt {color:#59727f}
+.map-details dd {margin:0;font-weight:600;white-space:pre-wrap}
+.map-details .map-description {grid-column:1/-1;font-weight:400;max-height:150px;overflow:auto}
