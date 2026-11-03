@@ -1,6 +1,6 @@
 // Increment this version whenever an application asset changes.
 const CACHE_PREFIX = `protime:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const APP_FILES = [
     './',
     './index.html',

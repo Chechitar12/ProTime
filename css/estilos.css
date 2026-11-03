@@ -21,11 +21,13 @@ button,a,summary {
 #phone {
     width:100%;
     min-height:100vh;
+    min-height:100dvh;
     background:#f7fafc
 }
 
 #app {
     min-height:100vh;
+    min-height:100dvh;
     background:#f7fafc;
     overflow-x:hidden
 }
@@ -612,7 +614,7 @@ aside hr {
 
 .fab {
     position:fixed;
-    right:max(22px,calc((100vw - 430px)/2 + 22px));
+    right:22px;
     bottom:24px;
     width:58px;
     height:58px;
@@ -993,43 +995,8 @@ aside hr {
 }
 
 @media(min-width:600px) {
-    body {
-        padding:28px 0
-    }
-    #phone {
-        width:390px;
-        height:820px;
-        min-height:820px;
-        margin:auto;
-        border:11px solid #17191b;
-        border-radius:44px;
-        box-shadow:0 8px 28px #0005;
-        overflow:hidden;
-        position:relative
-    }
-    #app {
-        min-height:100%;
-        height:100%;
-        overflow-y:auto
-    }
-    .login,.loading,.module {
-        min-height:798px
-    }
-    .fab {
-        position:absolute;
-        right:22px
-    }
-    .modal-wrap {
-        position:absolute
-    }
-    .overlay,aside {
-        position:absolute
-    }
     .pt-header {
         position:sticky
-    }
-    .sync-page {
-        min-height:680px
     }
 }
 
@@ -1375,29 +1342,11 @@ aside a i {
 }
 
 @media(min-width:600px) {
-    body {
-        padding:22px 0;
-        background:#c7c9cc
-    }
-    #phone {
-        width:342px;
-        height:704px;
-        min-height:704px;
-        border:9px solid #777b80;
-        border-radius:36px;
-        box-shadow:0 7px 22px #0004
-    }
     #app {
         font-size:13px
     }
-    .login,.loading,.module {
-        min-height:686px
-    }
     .fab {
         right:18px
-    }
-    .sync-page {
-        min-height:570px
     }
 }
 
@@ -1629,19 +1578,6 @@ aside a i {
 }
 
 /* ===== Mejoras N.40-N.42 ===== */
-/* Emulador más corto y proporcionado en escritorio. */ @media (min-width: 600px) {
-    #phone {
-        width: 342px;
-        height: 650px;
-        min-height: 650px;
-    }
-    .login,     .loading,     .module {
-        min-height: 632px;
-    }
-    .sync-page {
-        min-height: 516px;
-    }
-}
 
 /* HOME: seis KPI + un único gráfico circular. */ .home-page {
     padding-top: 10px;
@@ -1941,3 +1877,75 @@ body.web-mode .pt-header{border-radius:0}
 #drawer nav{overflow:auto;height:calc(100% - 88px)}
 /* El panel lateral del mapa no es el menú desplegable. */
 .map-sidebar{position:static;left:auto;top:auto;bottom:auto;width:auto;z-index:auto;box-shadow:none;transition:none}
+
+/* La aplicación ocupa la ventana; el contenido crece y permite scroll natural. */
+.login,.loading,.module {
+    min-height:100vh;
+    min-height:100dvh;
+}
+
+.login {
+    align-items:center;
+    padding:clamp(24px,5vh,56px) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+    gap:20px;
+}
+
+.login-logo {
+    margin:auto 0 0;
+}
+
+.login form {
+    max-width:440px;
+}
+
+.login footer {
+    padding-top:20px;
+}
+
+.opts {
+    flex-wrap:wrap;
+    gap:8px 16px;
+}
+
+aside:not(.map-sidebar) {
+    max-width:360px;
+}
+
+.home-page {
+    height:auto;
+    min-height:calc(100vh - 170px);
+    min-height:calc(100dvh - 170px);
+    overflow:visible;
+}
+
+.home-kpis {
+    flex:0 0 auto;
+    grid-template-rows:none;
+    grid-auto-rows:minmax(90px,auto);
+}
+
+.home-kpis article {
+    min-width:0;
+    overflow-wrap:anywhere;
+}
+
+.home-chart {
+    flex:0 0 auto;
+}
+
+.kpis:not(.home-kpis) {
+    max-width:none;
+    min-height:0;
+    align-content:start;
+}
+
+.sync-page {
+    min-height:calc(100vh - 88px);
+    min-height:calc(100dvh - 88px);
+}
+
+@media(min-width:768px) {
+    .home-kpis {
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+}
