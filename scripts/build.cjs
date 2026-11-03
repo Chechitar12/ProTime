@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const ROOT = path.resolve(__dirname,'..');
 const ASSETS = ['index.html','manifest.webmanifest','sw.js','css/estilos.css','css/ai-plan.css','css/mapa.css',
     'js/storage.js','js/incidencias.js','js/parcelas.js','js/app.js','js/web.js','js/ai-plan.js',
-    'js/voice.js','js/mapa.js','js/google-maps.js','js/pwa.js','icons/icon-192.png','icons/icon-512.png',
+    'js/voice.js','js/mapa.js','js/map-heat.js','js/google-maps.js','js/pwa.js','icons/icon-192.png','icons/icon-512.png',
     'icons/icon-maskable-512.png','icons/apple-touch-icon.png'];
 
 function build({sourceDir=ROOT,outputDir=path.join(ROOT,'dist'),env=process.env,requireKey=false}={}) {

@@ -14,10 +14,11 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
             const nativeAppend=Element.prototype.append;
             Element.prototype.append=function(...nodes){const node=nodes[0];if(this===document.head&&node?.tagName==='SCRIPT'&&node.src.includes('maps.googleapis.com')){setTimeout(()=>node.onerror(),0);return}return nativeAppend.apply(this,nodes)};
             qa.installGoogle=()=>{
-                class MockMap {constructor(el,opts){this.el=el;this.options=opts;this.zoom=opts.zoom;qa.maps.push(this)}fitBounds(b){this.bounds=b}panTo(p){this.position=p}getZoom(){return this.zoom}setZoom(z){this.zoom=z}}
+                class MockMap {constructor(el,opts){this.el=el;this.options=opts;this.zoom=opts.zoom;qa.maps.push(this);this.pane=document.createElement('div');el.append(this.pane)}fitBounds(b){this.bounds=b}panTo(p){this.position=p}getZoom(){return this.zoom}setZoom(z){this.zoom=z}getDiv(){return this.el}getCenter(){return this.options.center}}
+                class OverlayView {setMap(map){this.map=map;if(map){this.onAdd();this.draw()}else this.onRemove()}getPanes(){return {overlayLayer:this.map.pane}}getProjection(){return {fromLatLngToDivPixel:c=>({x:(typeof c.lng==='function'?c.lng():c.lng)*1000,y:(typeof c.lat==='function'?c.lat():c.lat)*-1000})}}}
                 class Marker {constructor(opts){Object.assign(this,opts);qa.markers.push(this);opts.map.el.append(opts.content)}addListener(event,fn){this.click=fn}}
                 class InfoWindow {constructor(){qa.popups.push(this)}setContent(c){this.content=c}open(o){this.options=o}close(){this.closed=true}}
-                window.google={maps:{Map:MockMap,marker:{AdvancedMarkerElement:Marker},InfoWindow,
+                window.google={maps:{Map:MockMap,marker:{AdvancedMarkerElement:Marker},InfoWindow,OverlayView,LatLng:class{constructor(lat,lng){this.lat=()=>lat;this.lng=()=>lng}},
                     LatLngBounds:class{constructor(){this.points=[]}extend(p){this.points.push(p)}},
                     event:{addListenerOnce(obj,name,fn){fn()},clearInstanceListeners(){}}}};
             };
@@ -59,6 +60,12 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         assert.equal(await run('document.querySelectorAll(".map-pin").length'),4);
         assert(await run("document.querySelector('.map-pending').textContent.includes('2 incidencia')"));
         for(const color of ['low','medium','high'])assert(await run(`!!document.querySelector('.map-pin.${color}')`));
+        assert.equal(await run('mapView.mode'),'heat');
+        assert(await run("document.querySelector('.map-heat').width>1"));
+        await run("document.querySelector('[data-map-mode=markers]').click()");
+        assert(await run("document.querySelector('.map-heat').hidden"));
+        await run("document.querySelector('[data-map-mode=heat]').click()");
+        assert(!await run("document.querySelector('.map-heat').hidden"));
         await run("document.querySelector('[data-map-id=INC-OLD]').click()");
         const detail=await run("document.querySelector('.map-details').textContent");
         for(const expected of ['INC-OLD','Parcela 64','Histórico GPS','Coordenada original','FINALIZADA','120.00'])assert(detail.includes(expected));
@@ -85,6 +92,12 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         // Test the optional Google integration without sending a request to Google.
         await run("qa.installGoogle();DB.set('pt_incidencias_v3',[old,{...old,id:'INC-P64',parcela:'Parcela 64',ubicacion:Parcelas.ubicacion('P64')}]);go('mapaIncidencias')");
         await until("mapView?.provider==='google'");
+        await until("document.querySelector('.map-google-host .map-heat')?.width>1");
+        assert(!await run("document.querySelector('.map-google-host .map-heat').hidden"));
+        await run("document.querySelector('[data-map-mode=markers]').click()");
+        assert(await run("document.querySelector('.map-google-host .map-heat').hidden"));
+        await run("document.querySelector('[data-map-mode=heat]').click()");
+        assert(!await run("document.querySelector('.map-google-host .map-heat').hidden"));
         assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-P64')).position.lat"),-8.5456913);
         assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-P64')).position.lng"),-78.6505618);
         assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-OLD')).position.lat"),-8.54);
@@ -93,5 +106,19 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         await run("go('registro')");
         assert(await run('qa.markers.every(m=>m.map===null)'));
         assert.equal(await run('Incidencias.byId(old.id).ubicacion.latitud'),-8.54);
+        await run(`qa.googleEnabled=false;
+            window.lowHeat={...old,id:'INC-LOW',parcela:'Parcela 61',tipo:'Falta de personal',descripcion:'Registro de bajo impacto',
+                inicio:'2026-11-03T08:00:00Z',fin:'2026-11-03T08:03:36Z',trabajadores:1,ubicacion:Parcelas.ubicacion('P61')};
+            DB.set('pt_incidencias_v3',[lowHeat]);go('mapaIncidencias');`);
+        await until("document.querySelector('.map-heat').width>1");
+        assert(await run("(()=>{const c=document.querySelector('.map-heat'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let area=0;for(let i=3;i<d.length;i+=4)if(d[i]>0)area++;return area>1000})()"),'A single 0.06-hour incidence produces a visible area of heat');
+        if(process.env.PROTIME_QA_OUTPUT){
+            for(const [name,rows] of [['single','[lowHeat]'],['overview',`[lowHeat,{...old,id:'INC-MED',parcela:'Parcela 62',ubicacion:Parcelas.ubicacion('P62'),trabajadores:30},{...old,id:'INC-HIGH',parcela:'Parcela 64',ubicacion:Parcelas.ubicacion('P64'),trabajadores:75}]`]]){
+                await run(`DB.set('pt_incidencias_v3',${rows});go('mapaIncidencias')`);
+                await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+                const shot=await command('Page.captureScreenshot',{format:'png'});
+                fs.writeFileSync(path.join(process.env.PROTIME_QA_OUTPUT,`protime-heat-${name}.png`),Buffer.from(shot.data,'base64'));
+            }
+        }
     });
 });

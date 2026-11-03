@@ -16,7 +16,7 @@ function geoInit(form) {
     parcela.addEventListener('input',update);
     update();
 }
-let mapView=null;
+let mapView=null,mapMode='heat';
 function mapDispose(){
     mapView?.observer?.disconnect();
     mapView?.googleHandle?.destroy();
@@ -36,8 +36,13 @@ const mapColor=h=>h<50?'low':h<100?'medium':'high';
 function mapaIncidencias(){
     mapDispose();
     const all=Incidencias.all(),rows=all.filter(x=>mapCoords(x)),pending=all.length-rows.length;
-    app.innerHTML=`${internalHeader('Mapa de incidencias')}<main class="map-page"><h1>Mapa de incidencias</h1>
-        <p>Ubicaciones guardadas en este navegador. Toca un marcador para ver el detalle.</p>
+    app.innerHTML=`${internalHeader('Mapa de incidencias')}<main class="map-page"><h1>Mapa de calor de incidencias</h1>
+        <p>Identifica las zonas de mayor afectación. Toca un punto o selecciona una incidencia para ver el detalle.</p>
+        <div class="map-view-toolbar"><div class="map-view-switch" role="group" aria-label="Visualización del mapa">
+        <button type="button" data-map-mode="heat" aria-pressed="${mapMode==='heat'}">◉ Mapa de calor</button>
+        <button type="button" data-map-mode="markers" aria-pressed="${mapMode==='markers'}">⌖ Marcadores</button></div>
+        <div class="map-heat-legend"><span>Menor impacto</span><i aria-hidden="true"></i><span>Mayor impacto</span></div></div>
+        <p class="map-heat-explanation">El calor acumula las horas-hombre de incidencias próximas. Es una influencia visual, no el límite de la parcela. Los puntos conservan el color individual de cada incidencia.</p>
         <div class="map-legend"><span><i class="low"></i>Menos de 50 h</span><span><i class="medium"></i>50 a menos de 100 h</span><span><i class="high"></i>100 h o más</span></div>
         ${pending?`<p class="map-pending" role="status">${pending} incidencia(s) con ubicación pendiente o no válida. Los registros históricos se conservan sin modificar.</p>`:''}
         <p id="mapProviderStatus" class="map-provider-status" role="status"></p>
@@ -47,13 +52,24 @@ function mapaIncidencias(){
     // El centro vacío es solo una vista inicial, nunca una ubicación de incidencia.
     const defaultCenter=Parcelas.ubicacion('P61');
     const first=mapCoords(rows[0])||{lat:defaultCenter.latitud,lon:defaultCenter.longitud};
-    mapView={center:first,zoom:rows.length>1?10:14,rows,provider:'osm'};
+    mapView={center:first,zoom:rows.length>1?10:14,rows,provider:'osm',mode:mapMode};
     if(rows.length>1){let lats=rows.map(x=>mapCoords(x).lat),lons=rows.map(x=>mapCoords(x).lon);
         mapView.center={lat:(Math.min(...lats)+Math.max(...lats))/2,lon:(Math.min(...lons)+Math.max(...lons))/2};
         const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lons)-Math.min(...lons));
         mapView.zoom=Math.max(3,Math.min(15,Math.floor(Math.log2(80/Math.max(.005,spread)))));
     }
     const view=mapView,el=document.getElementById('incidentMap');
+    el.dataset.mode=mapMode;
+    document.querySelectorAll('[data-map-mode]').forEach(button=>button.onclick=()=>{
+        mapMode=button.dataset.mapMode;view.mode=mapMode;el.dataset.mode=mapMode;
+        document.querySelectorAll('[data-map-mode]').forEach(control=>control.setAttribute('aria-pressed',String(control.dataset.mapMode===mapMode)));
+        document.querySelector('.map-heat-legend').hidden=mapMode!=='heat';
+        document.querySelector('.map-heat-explanation').hidden=mapMode!=='heat';
+        view.googleHandle?.setMode(mapMode);
+        if(view.provider==='osm')mapDraw();
+    });
+    document.querySelector('.map-heat-legend').hidden=mapMode!=='heat';
+    document.querySelector('.map-heat-explanation').hidden=mapMode!=='heat';
     mapOsmMount(view);
     document.querySelectorAll('[data-map-id]').forEach(b=>b.onclick=()=>{
         const row=rows.find(x=>x.id===b.dataset.mapId);if(!row)return;
@@ -68,7 +84,7 @@ function mapaIncidencias(){
 function mapOsmMount(view){
     const el=document.getElementById('incidentMap');if(!el||mapView!==view)return;
     view.provider='osm';el.dataset.provider='osm';
-    el.innerHTML='<div class="map-tiles"></div><div class="map-pins"></div><div class="map-controls"><button id="mapPlus" aria-label="Acercar">+</button><button id="mapMinus" aria-label="Alejar">−</button></div><div class="map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> colaboradores</div>';
+    el.innerHTML='<div class="map-tiles"></div><canvas class="map-heat" aria-hidden="true"></canvas><div class="map-pins"></div><div class="map-controls"><button id="mapPlus" aria-label="Acercar">+</button><button id="mapMinus" aria-label="Alejar">−</button></div><div class="map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> colaboradores</div>';
     if(!view.fitted&&view.rows.length){
         const points=view.rows.map(row=>mapProject(mapCoords(row),0));
         const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
@@ -108,7 +124,7 @@ async function mapGoogleMount(view){
         const handle=await GoogleMapsView.mount({element:host,view,onFailure:fallback});
         if(mapView!==view||failed){handle?.destroy();return;}
         view.googleHandle=handle;view.provider='google';el.dataset.provider='google';
-        el.querySelectorAll('.map-tiles,.map-pins,.map-controls,.map-attribution,.map-popup').forEach(layer=>{layer.hidden=true});
+        el.querySelectorAll(':scope>.map-tiles,:scope>.map-heat,:scope>.map-pins,:scope>.map-controls,:scope>.map-attribution,:scope>.map-popup').forEach(layer=>{layer.hidden=true});
         status.textContent='Mapa base: Google Maps · coordenadas guardadas de cada incidencia.';
     }catch(_){fallback()}
 }
@@ -137,6 +153,12 @@ function mapDraw(){
         pin.style.left=px+'px';pin.style.top=py+'px';pin.setAttribute('aria-label',`${x.id}, ${x.parcela||'Sin parcela'}, ${x.tipo||'Incidencia'}, ${h.toFixed(2)} horas-hombre`);
         pin.title=`${x.tipo||'Incidencia'} · ${h.toFixed(2)} h`;pin.dataset.id=x.id;pin.onclick=()=>mapPopup(x,pin);pins.append(pin);
     }
+    const heat=el.querySelector('.map-heat');heat.hidden=mapView.mode!=='heat';
+    if(mapView.mode==='heat')MapHeat.draw(heat,MapHeat.groups(mapView.rows).map(location=>{
+        const pixel=mapProject(location,z);let dx=pixel.x-c.x;
+        if(dx>world/2)dx-=world;if(dx< -world/2)dx+=world;
+        return {x:dx+width/2,y:pixel.y-c.y+height/2,hours:location.hours};
+    }),width,height);
 }
 function mapPopup(x,anchor){
     document.querySelector('.map-popup')?.remove();

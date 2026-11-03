@@ -22,6 +22,14 @@ Se reconocen los códigos P61/P62/P64 y sus etiquetas Parcela 61/62/64. P64 util
 
 Los marcadores conservan los umbrales existentes de horas-hombre: verde por debajo de 50 h, amarillo desde 50 hasta menos de 100 h y rojo desde 100 h. El detalle muestra número, parcela, tipo, descripción, estado y horas-hombre afectadas. La lista lateral permite elegir registros que comparten exactamente la misma posición; no se desplazan marcadores para simular ubicaciones diferentes.
 
+## Mapa de calor
+
+La vista inicial muestra una capa de calor difuminada, con áreas verdes, amarillas y rojas según las horas-hombre acumuladas en las ubicaciones próximas. Las incidencias que comparten coordenadas suman sus horas para esta capa; los registros y los colores individuales permanecen intactos. La escala utiliza 50 h y 100 h como referencias de impacto, sin normalizar el registro mayor a rojo automáticamente. Incluso una incidencia de 0.06 h muestra una zona verde visible. La difusión visual no representa los límites reales de las parcelas.
+
+El selector **Mapa de calor / Marcadores** permite cambiar de vista. Los puntos pequeños del calor y la lista lateral abren el detalle individual; la vista de marcadores conserva los puntos de colores anteriores. El dibujo acompaña el desplazamiento y zoom tanto en Google Maps como en OpenStreetMap, funciona con los registros locales sin conexión y se elimina al salir de la pantalla.
+
+La capa se dibuja en canvas con `OverlayView` sobre Google Maps. No depende de la antigua `HeatmapLayer` de Google, retirada en mayo de 2026: [documentación de Google](https://developers.google.com/maps/deprecations#heatmap-layer-js-deprecation).
+
 ## Google Maps mediante variables de entorno
 
 En `.env` (archivo local excluido de Git), completar:

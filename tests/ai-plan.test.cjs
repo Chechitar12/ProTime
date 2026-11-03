@@ -23,7 +23,7 @@ test('AI review, editing, explicit saves, errors, cancellation and responsive la
         if (!file.startsWith(root+path.sep)) {response.writeHead(403).end();return;}
         if (pathname === '/js/ai-config.js') {
             response.writeHead(200,{'Content-Type':'text/javascript'}).end(
-                "const PROTIME_AI_CONFIG=Object.freeze({apiKey:'test-only-not-a-real-key',model:'gpt-4.1-mini',timeoutMs:350});");return;
+                "const PROTIME_AI_CONFIG=Object.freeze({apiKey:'test-only-not-a-real-key',model:'gpt-4.1-mini',get timeoutMs(){return window.qa?.mode==='timeout'?100:10000}});");return;
         }
         const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webmanifest':'application/manifest+json'};
         try {response.writeHead(200,{'Content-Type':mime[path.extname(file)]||'text/plain'}).end(fs.readFileSync(file));}
@@ -77,7 +77,7 @@ test('AI review, editing, explicit saves, errors, cancellation and responsive la
                 qa.calls.push(JSON.parse(options.body));
                 const mode=qa.mode;
                 await new Promise((resolve,reject)=>{
-                    const timer=setTimeout(resolve,mode==='slow'?1000:qa.delay);
+                    const timer=setTimeout(resolve,mode==='slow'?60000:mode==='timeout'?1000:qa.delay);
                     options.signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('Aborted','AbortError'))},{once:true});
                 });
                 if(mode==='401'||mode==='429')return new Response('{}',{status:Number(mode)});
@@ -150,7 +150,7 @@ test('AI review, editing, explicit saves, errors, cancellation and responsive la
         await run("webForm.elements.solucionAplicada.value='Solución efectivamente realizada';webForm.requestSubmit()");
         assert.equal(await run("webStatus(Incidencias.byId(fixture.id))"),'Solucionado');
         // Token, limits, malformed response, network failure, timeout and offline.
-        for (const mode of ['401','429','invalid','network','slow']) {
+        for (const mode of ['401','429','invalid','network','timeout']) {
             await run(`webPlan(fixture);qa.mode='${mode}';document.querySelector('[data-ai-action=suggest]').click()`);
             await until("!!document.querySelector('.ai-error')");
             assert(!await run("document.querySelector('[data-ai-fields]').hidden"),'Manual entry stays available');

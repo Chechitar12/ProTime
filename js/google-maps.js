@@ -46,6 +46,8 @@ const GoogleMapsView = (() => {
             mapId:PROTIME_MAP_CONFIG.mapId||'DEMO_MAP_ID',streetViewControl:false,mapTypeControl:false,
             fullscreenControl:true,gestureHandling:'cooperative'});
         const popup = new maps.InfoWindow({maxWidth:320});
+        const heat = MapHeat.google(maps,map,view.rows);
+        heat.setVisible(view.mode==='heat');
         const markers = new Map();
         for (const row of view.rows) {
             const coordinates = mapCoords(row),hours = mapHours(row);
@@ -72,11 +74,13 @@ const GoogleMapsView = (() => {
             maps.event.addListenerOnce(map,'idle',() => {if (map.getZoom()>17) map.setZoom(17);});
         }
         return {
+            setMode(mode) {heat.setVisible(mode==='heat');},
             focus(id) {
                 const entry = markers.get(id);if (!entry) return;
                 map.panTo(entry.marker.position);entry.open();
             },
             destroy() {
+                heat.setMap(null);
                 authListeners.delete(failure);popup.close();
                 for (const {marker} of markers.values()) {maps.event.clearInstanceListeners(marker);marker.map = null;}
                 maps.event.clearInstanceListeners(map);
