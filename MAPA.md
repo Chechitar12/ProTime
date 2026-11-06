@@ -31,11 +31,11 @@ Se reconocen los códigos de la tabla y sus etiquetas correspondientes, como `P6
 - Solo los registros nuevos reciben coordenadas del catálogo. No hay migraciones, sustituciones ni llamadas GPS después de guardar. Cambiar el catálogo, abrir el mapa o editar un registro histórico no recalcula sus coordenadas. Los históricos sin coordenadas continúan pendientes.
 - El mapa solo lee `ubicacion` del registro. Un registro histórico con GPS u otra coordenada válida se dibuja en esa posición original, incluso si difiere del catálogo nuevo.
 
-El color del marcador corresponde a la duración que muestra en horas y minutos. Es verde por debajo de 50 h, amarillo desde 50 hasta menos de 100 h y rojo desde 100 h. El detalle muestra la duración y las horas-hombre afectadas por separado. La lista lateral permite elegir registros que comparten la misma posición.
+El marcador muestra las horas-hombre (HH), calculadas al multiplicar la duración por la cantidad de trabajadores afectados. Es verde por debajo de 50 HH, amarillo desde 50 hasta menos de 100 HH y rojo desde 100 HH. El detalle muestra la duración y las horas-hombre afectadas por separado. La lista lateral permite elegir registros que comparten la misma posición.
 
 ## Mapa de calor
 
-La capa de calor suma las horas de duración de incidencias próximas y usa los mismos rangos de color que los marcadores. Cada marcador se colorea según la duración de su propia incidencia.
+La capa de calor suma las HH de incidencias próximas y usa los mismos rangos de color que los marcadores. Cada marcador se colorea según las HH de su propia incidencia.
 
 El selector **Mapa de calor / Marcadores** permite cambiar de vista. Los puntos pequeños del calor y la lista lateral abren el detalle individual; la vista de marcadores conserva los puntos de colores anteriores. El dibujo acompaña el desplazamiento y zoom tanto en Google Maps como en OpenStreetMap, funciona con los registros locales sin conexión y se elimina al salir de la pantalla.
 

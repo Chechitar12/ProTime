@@ -50,10 +50,10 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         await until("screen==='registro'");
         assert.equal(await run('Incidencias.all()[0].ubicacion'),null);
         assert.equal(await run('Incidencias.all()[0].ubicacionEstado'),'pendiente');
-        // Use durations of 48 h, 50 h, 100 h and 5 h 02 min to check the map bands.
+        // Parcela 86 has 5 h × 10 workers, exactly at the yellow threshold.
         await run(`
             Incidencias.all().filter(x=>x.ubicacion?.fuente==='catalogo_parcelas').forEach((x,i)=>Incidencias.update(x.id,{
-                inicio:'2026-11-03T08:00:00Z',fin:['2026-11-05T08:00:00Z','2026-11-05T10:00:00Z','2026-11-07T12:00:00Z','2026-11-03T13:02:00Z'][i],estado:'FINALIZADA',trabajadores:[3,25,10,10][i]}));
+                inicio:'2026-11-03T08:00:00Z',fin:['2026-11-03T13:00:00Z','2026-11-05T10:00:00Z','2026-11-07T12:00:00Z','2026-11-03T13:02:00Z'][i],estado:'FINALIZADA',trabajadores:[10,25,10,1][i]}));
             go('mapaIncidencias');
         `);
         assert.equal(await run('JSON.stringify(Incidencias.all().filter(x=>[old.id,pendingOld.id].includes(x.id)))'),historical);
@@ -61,7 +61,6 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         assert(await run("document.querySelector('.map-pending').textContent.includes('2 incidencia')"));
         for(const color of ['low','medium','high'])assert(await run(`!!document.querySelector('.map-pin.${color}')`));
         assert.equal(await run("document.querySelectorAll('.map-parcel-label').length"),14);
-        assert(await run("[...document.querySelectorAll('.map-pin.low .map-pin-face b')].some(value=>value.textContent==='5:02')"));
         assert.equal(await run("getComputedStyle(document.querySelector('.map-pin.high .map-pin-face'),'::before').animationIterationCount"),'infinite');
         assert.equal(await run("getComputedStyle(document.querySelector('.map-pin.low .map-pin-face'),'::before').animationName"),'none');
         await run(`window.setMapFilter=(name,value)=>{
@@ -78,8 +77,10 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         assert.equal(await run('mapView.rows.length'),5);
         await run("setMapFilter('parcela','P86')");
         assert.deepEqual(await run('mapView.rows.map(row=>row.parcela)'),['Parcela 86']);
-        assert.equal(await run("document.querySelector('.map-pin.low .map-pin-face b').textContent"),'48:00');
-        assert.equal(await run('MapHeat.groups(mapView.rows)[0].hours'),48);
+        assert.equal(await run("document.querySelector('.map-pin.medium .map-pin-face').textContent"),'50HH');
+        assert.equal(await run('MapHeat.groups(mapView.rows)[0].hours'),50);
+        await run("document.querySelector('.map-pin.medium').click()");
+        assert(await run("document.querySelector('.map-details').textContent.includes('5:00 h')"));
         await run("document.querySelector('.map-filters').reset()");
         assert.equal(await run('mapView.mode'),'heat');
         assert(await run("document.querySelector('.map-heat').width>1"));

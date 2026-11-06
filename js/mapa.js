@@ -43,7 +43,6 @@ function mapDuration(row){
     const minutes=Math.floor(elapsed/60000);
     return `${Math.floor(minutes/60)}:${String(minutes%60).padStart(2,'0')}`;
 }
-const mapDurationHours=row=>(mapElapsed(row)??0)/3600000;
 const mapHours=row=>(mapElapsed(row)??0)*Number(row.trabajadores||0)/3600000;
 const mapColor=h=>h<50?'low':h<100?'medium':'high';
 const mapParcelKey=row=>Parcelas.codigo(row.parcela)||String(row.parcela??'').trim();
@@ -81,8 +80,8 @@ function mapApplyFilters(view){
     pendingNote.hidden=!pending;
     pendingNote.textContent=`${pending} incidencia(s) con ubicación pendiente o no válida.`;
     document.querySelector('.map-sidebar').innerHTML=`<b>${view.rows.length} incidencia(s) con ubicación</b>${view.rows.map(row=>{
-        const color=mapColor(mapDurationHours(row));
-        return `<button type="button" class="map-item" data-map-id="${webEsc(row.id)}"><span class="map-dot ${color}"></span><span><strong>${webEsc(row.id)} · ${webEsc(row.parcela||'Sin parcela')}</strong><small>${webEsc(row.tipo||'Incidencia')} · ${mapDuration(row)} h</small></span></button>`;
+        const hours=mapHours(row);
+        return `<button type="button" class="map-item" data-map-id="${webEsc(row.id)}"><span class="map-dot ${mapColor(hours)}"></span><span><strong>${webEsc(row.id)} · ${webEsc(row.parcela||'Sin parcela')}</strong><small>${webEsc(row.tipo||'Incidencia')} · ${hours.toFixed(2)} HH</small></span></button>`;
     }).join('')||'<p>No hay incidencias con ubicación para estos filtros.</p>'}`;
     if(view.googleHandle){
         view.googleHandle.setData(view.rows,view.parcels);
@@ -108,8 +107,8 @@ function mapaIncidencias(){
         <button type="button" data-map-mode="heat" aria-pressed="${mapMode==='heat'}">◉ Mapa de calor</button>
         <button type="button" data-map-mode="markers" aria-pressed="${mapMode==='markers'}">⌖ Marcadores</button></div>
         <div class="map-heat-legend"><span>Menor impacto</span><i aria-hidden="true"></i><span>Mayor impacto</span></div></div>
-        <p class="map-heat-explanation">El color del marcador indica la duración de su incidencia. El calor suma las horas de duración de incidencias próximas.</p>
-        <div class="map-legend" aria-label="Rangos de duración en horas"><span><i class="low"></i>Menos de 50 h</span><span><i class="medium"></i>Desde 50 y menos de 100 h</span><span><i class="high"></i>100 h o más</span></div>
+        <p class="map-heat-explanation">Cada marcador muestra las horas-hombre (HH) de su incidencia. El calor suma las HH de incidencias próximas.</p>
+        <div class="map-legend" aria-label="Rangos de afectación en horas-hombre"><span><i class="low"></i>Menos de 50 HH</span><span><i class="medium"></i>Desde 50 y menos de 100 HH</span><span><i class="high"></i>100 HH o más</span></div>
         <p id="mapPending" class="map-pending" role="status" hidden></p>
         <p id="mapProviderStatus" class="map-provider-status" role="status"></p>
         <div class="map-layout"><div id="incidentMap" class="incident-map" aria-label="Mapa de incidencias"></div>
@@ -241,10 +240,10 @@ function mapDraw(){
 }
 function mapMarkerButton(row,hours,className){
     const pin=document.createElement('button');
-    pin.type='button';pin.className=`${className} ${mapColor(mapDurationHours(row))}`;
-    const duration=mapDuration(row);
-    pin.setAttribute('aria-label',`${row.id}, ${row.parcela||'Sin parcela'}, duración ${duration}, afectación ${hours.toFixed(2)} horas-hombre`);
-    pin.innerHTML=`<span class="map-pin-face"><b>${duration}</b><small>h</small></span>`;
+    pin.type='button';pin.className=`${className} ${mapColor(hours)}`;
+    const value=String(Number(hours.toFixed(2)));
+    pin.setAttribute('aria-label',`${row.id}, ${row.parcela||'Sin parcela'}, ${value} horas-hombre`);
+    pin.innerHTML=`<span class="map-pin-face"><b>${value}</b><small>HH</small></span>`;
     return pin;
 }
 function mapPopup(x,anchor){
@@ -265,7 +264,7 @@ function mapPopup(x,anchor){
 function mapPopupContent(x){
     const hours=mapHours(x),estado=x.validacionEstado?`${x.estado||'—'} · ${x.validacionEstado}`:x.estado||'—';
     const card=document.createElement('div');
-    card.className=`map-details ${mapColor(mapDurationHours(x))}`;
+    card.className=`map-details ${mapColor(hours)}`;
     card.innerHTML=`<header class="map-detail-heading"><strong>${webEsc(x.id)}</strong><h2>${webEsc(x.tipo||'Incidencia')}</h2></header><dl>
         <dt>Parcela</dt><dd>${webEsc(x.parcela||'—')}</dd>
         <dt>Área</dt><dd>${webEsc(x.area||'—')}</dd>

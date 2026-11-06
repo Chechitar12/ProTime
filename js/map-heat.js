@@ -1,5 +1,5 @@
 /* Capa de calor compartida por Google Maps y el mapa offline.
-   Acumula horas de duración de las incidencias. */
+   Acumula las horas-hombre de las incidencias. */
 const MapHeat = (() => {
     function groups(rows) {
         const locations = new Map();
@@ -7,7 +7,7 @@ const MapHeat = (() => {
             const coords = mapCoords(row);if (!coords) continue;
             const key = `${coords.lat}|${coords.lon}`;
             if (!locations.has(key)) locations.set(key,{...coords,hours:0,count:0});
-            const location = locations.get(key),hours = mapDurationHours(row);
+            const location = locations.get(key),hours = mapHours(row);
             location.hours += Number.isFinite(hours)?Math.max(0,hours):0;
             location.count++;
         }

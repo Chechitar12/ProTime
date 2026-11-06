@@ -11,7 +11,7 @@ test('heat accumulates actual hours at coincident coordinates without changing r
     const row={ubicacion:{latitud:-8.5456913,longitud:-78.6505618},inicio:'2026-11-03T08:00:00Z',fin:'2026-11-03T10:00:00Z',trabajadores:15};
     const rows=[row,{...row,id:'SECOND'},{...row,ubicacion:null}];
     const before=JSON.stringify(rows),groups=heat.groups(rows);
-    assert.equal(groups.length,1);assert.equal(groups[0].hours,4);assert.equal(groups[0].count,2);
+    assert.equal(groups.length,1);assert.equal(groups[0].hours,60);assert.equal(groups[0].count,2);
     assert.equal(groups[0].lat,-8.5456913);assert.equal(groups[0].lon,-78.6505618);
     assert.equal(JSON.stringify(rows),before);
 });
