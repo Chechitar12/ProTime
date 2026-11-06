@@ -13,6 +13,10 @@ const Incidencias = {
         return this.all().find((incidencia) => incidencia.id === id);
     },
 
+    clear() {
+        DB.set('pt_incidencias_v3', null);
+    },
+
     update(id, cambios) {
         const actualizadas = this.all().map((incidencia) => {
             return incidencia.id === id

@@ -1,12 +1,13 @@
 const app = document.querySelector('#app');
 let screen = 'login', filtro = 'todos', reporteFiltro = 'curso', detalleId = null, reportOpenId = null;
+let guardandoIncidencia = false, limpiandoDatos = false;
 const nowDay = () => new Date().toLocaleDateString('es-PE');
 const sameToday = x => new Date(x).toLocaleDateString('es-PE') === nowDay();
 const fmt = d => new Date(d).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const time = d => new Date(d).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 const dur = (a, b = Date.now()) => { let s = Math.max(0, Math.floor((new Date(b) - new Date(a)) / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return [h, m, x].map(v => String(v).padStart(2, '0')).join(':'); };
 function go(s) { if (typeof mapDispose === 'function') mapDispose(); if (screen === 'nuevo' && s !== 'nuevo' && typeof voiceReset === 'function') voiceReset(); screen = s; document.body.classList.toggle('web-mode', ['reporteWeb','validacionWeb','mapaIncidencias'].includes(s)); render(); document.querySelector('#app')?.scrollTo(0, 0); }
-function internalHeader(t, showDate = false) { if(showDate)return `<header class="pt-header home-header"><button class="hbtn" onclick="go('modulos')" title="Menú principal">←</button><button class="hbtn" onclick="toggleMenu()" title="Menú PRO TIME">☰</button><div class="home-header-info"><div class="home-header-line"><span>Grupo: G003</span><time>${nowDay()}</time></div><b>Dashboard</b></div><button class="dots" onclick="toggleDbMenu(event)" title="Opciones">⋮</button><div id="dbMenu" class="db-menu"><button onclick="descargarBD()">⬇ Descargar BD</button></div></header>${menu()}`; return `<header class="pt-header"><button class="hbtn" onclick="go('modulos')" title="Menú principal">←</button><button class="hbtn" onclick="toggleMenu()" title="Menú PRO TIME">☰</button><div class="head-title"><b>${t}</b><small>PRO TIME · Grupo: 003</small></div><button class="dots" onclick="toggleDbMenu(event)" title="Opciones">⋮</button><small class="head-version">1.0.14 - DEV</small><div id="dbMenu" class="db-menu"><button onclick="descargarBD()">⬇ Descargar BD</button></div></header>${menu()}`; }
+function internalHeader(t, showDate = false) { if(showDate)return `<header class="pt-header home-header"><button class="hbtn" onclick="go('modulos')" title="Menú principal">←</button><button class="hbtn" onclick="toggleMenu()" title="Menú PRO TIME">☰</button><div class="home-header-info"><div class="home-header-line"><span>Grupo: G003</span><time>${nowDay()}</time></div><b>Dashboard</b></div><button class="dots" onclick="toggleDbMenu(event)" title="Opciones">⋮</button><div id="dbMenu" class="db-menu">${dbMenuActions()}</div></header>${menu()}`; return `<header class="pt-header"><button class="hbtn" onclick="go('modulos')" title="Menú principal">←</button><button class="hbtn" onclick="toggleMenu()" title="Menú PRO TIME">☰</button><div class="head-title"><b>${t}</b><small>PRO TIME · Grupo: 003</small></div><button class="dots" onclick="toggleDbMenu(event)" title="Opciones">⋮</button><small class="head-version">1.0.14 - DEV</small><div id="dbMenu" class="db-menu">${dbMenuActions()}</div></header>${menu()}`; }
 function render() { ({ login, loading, modulos, home, maestra, registro, nuevo, detalle, reportes, reporteDetalle, indicadores, envio, reporteWeb, validacionWeb, mapaIncidencias }[screen] || login)(); }
 function login() { let cred = DB.get('pt_recordar', null); app.innerHTML = `<main class="login"><div class="login-logo"><div class="camposol-mark"><span class="brand-leaf">♧</span><b>CAMPOSOL</b></div><h1>SAYTA</h1><p>Ingresa tus credenciales para iniciar sesión</p></div><form id="loginForm"><label>Empresa<select><option>CAMPOSOL PERU</option></select></label><label>Usuario<input id="u" autocomplete="username" value="${cred?.usuario || ''}"></label><label>Contraseña<div class="pass"><input id="p" type="password" autocomplete="current-password" value="${cred?.password || ''}"><button type="button" id="eye" aria-label="Mostrar contraseña">◉</button></div></label><div class="opts"><label><input id="remember" type="checkbox" ${cred ? 'checked' : ''}> Recordar contraseña</label><u>Olvidé mi contraseña</u></div><p id="err"></p><button class="orange">Iniciar sesión</button><button type="button" class="ms">▦ &nbsp; Ingreso con Microsoft</button></form><footer>Designed by Camposol S.A<br>SAYTA · DEV 1.0.14</footer></main>`; const eye = document.getElementById('eye'), p = document.getElementById('p'), loginForm = document.getElementById('loginForm'), u = document.getElementById('u'), remember = document.getElementById('remember'), err = document.getElementById('err'); eye.onclick = () => p.type = p.type === 'password' ? 'text' : 'password'; loginForm.onsubmit = e => { e.preventDefault(); if (u.value.trim() === '621901' && p.value === '621901') {
     if (remember.checked)
@@ -39,7 +40,7 @@ function modulos() {
 
                 <button class="module-dots" onclick="toggleModuleDbMenu(event)" title="Opciones">⋮</button>
                 <div id="moduleDbMenu" class="module-db-menu">
-                    <button onclick="descargarBD()">⬇ Descargar BD</button>
+                    ${dbMenuActions()}
                 </div>
 
                 <div class="round-logo">CS</div>
@@ -170,6 +171,8 @@ function nuevo() {
     geoInit(form);
     form.onsubmit=async e=>{
         e.preventDefault();
+        if(guardandoIncidencia||limpiandoDatos)return;
+        guardandoIncidencia=true;
         const button=form.querySelector('#saveIncident');button.disabled=true;
         try {
             const audio=await voicePrepare(form);
@@ -184,7 +187,7 @@ function nuevo() {
             try{Incidencias.save(x)}catch(error){if(audio)await voiceRemove(id);throw error}
             voiceReset();toast(ubicacion?'Incidencia guardada con las coordenadas de la parcela.':'Incidencia guardada. Ubicación pendiente: parcela sin coordenadas configuradas.');filtro='todos';setTimeout(()=>go('registro'),450);
         }catch(error){voiceMessage(form,'No se pudo guardar: '+(error?.message||'error del navegador'));}
-        finally{button.disabled=false}
+        finally{guardandoIncidencia=false;button.disabled=false}
     };
 }
 function detalleInc(id) { detalleId = id; go('detalle'); }
@@ -213,6 +216,35 @@ function bar(k, v, total) { return `<div class="barrow"><span>${k}</span><i><em 
 function envio() { let a = Incidencias.all(), pend = a.filter(x => !x.sincronizado), sync = DB.get('pt_ultima_sync_v3', null), last = DB.get('pt_ultimo_envio_v3', 0); app.innerHTML = `${internalHeader('Envío de información')}<main class="page sync-page"><section class="sync-card"><h3>Información por sincronizar</h3><div class="sync-counts"><span class="sent">☁ Enviados: <b>${last}</b></span><span class="pending">⌁ Pendientes: <b>${pend.length}</b></span></div><div class="sync-progress"><i style="width:${pend.length ? 35 : 100}%"></i></div><p>Solo se muestra la cantidad de registros pendientes.</p></section><section class="last-sync"><small>Última sincronización</small><b>${sync ? fmt(sync) : 'Aún no se ha sincronizado'}</b></section><button class="sync-button" ${!pend.length ? 'disabled' : ''} onclick="sincronizar()">☁ &nbsp; Enviar pendientes</button></main>`; }
 function sincronizar() { let a = Incidencias.all(), n = a.filter(x => !x.sincronizado).length, t = new Date().toISOString(); DB.set('pt_incidencias_v3', a.map(x => x.sincronizado ? x : { ...x, sincronizado: true, fechaEnvio: t })); DB.set('pt_ultima_sync_v3', t); DB.set('pt_ultimo_envio_v3', n); toast(`${n} registro(s) enviados correctamente`); setTimeout(envio, 500); }
 function toggleDbMenu(e) { e?.stopPropagation(); document.querySelector('#dbMenu')?.classList.toggle('open'); }
+function dbMenuActions() {
+    return `<button type="button" onclick="descargarBD()">⬇ Descargar BD</button>
+        <button type="button" class="db-clear-data" onclick="limpiarDatos()">Limpiar datos</button>`;
+}
+async function limpiarDatos() {
+    document.querySelector('#dbMenu, #moduleDbMenu')?.classList.remove('open');
+    if(limpiandoDatos)return;
+    if(guardandoIncidencia){toast('Espera a que termine el guardado de la incidencia.');return;}
+    if(!confirm('¿Limpiar los datos locales de ProTime? Se eliminarán todas las incidencias y grabaciones de este navegador. Esta acción es permanente.'))return;
+
+    limpiandoDatos=true;
+    app.inert=true;
+    try {
+        await voiceClear();
+        Incidencias.clear();
+        DB.set('pt_ultima_sync_v3', null);
+        DB.set('pt_ultimo_envio_v3', null);
+    } catch (_) {
+        toast('No se pudo completar la limpieza. Inténtalo de nuevo.');
+        return;
+    } finally {
+        limpiandoDatos=false;
+        app.inert=false;
+    }
+    detalleId=reportOpenId=null;
+    webSelected.clear();
+    go(screen);
+    toast('Datos locales eliminados.');
+}
 function descargarBD() { let rows = Incidencias.all(); if (!rows.length) {
     document.querySelector('#dbMenu')?.classList.remove('open');
     document.querySelector('#moduleDbMenu')?.classList.remove('open');

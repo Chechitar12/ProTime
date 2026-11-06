@@ -1681,6 +1681,11 @@ aside a i {
     background: #f2f6f8;
 }
 
+.db-menu .db-clear-data,.module-db-menu .db-clear-data {
+    color:#a32d38;
+    border-top:1px solid #e3e9ee;
+}
+
 /* ===== AJUSTE FINAL HOME: todo visible sin scroll ===== */
 .home-page {
     box-sizing: border-box;

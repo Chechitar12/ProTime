@@ -52,6 +52,20 @@ async function voiceRemove(id) {
     } finally { db.close(); }
 }
 
+async function voiceClear() {
+    if (!window.indexedDB) return;
+    const db = await voiceOpen();
+    try {
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('audios', 'readwrite');
+            tx.objectStore('audios').clear();
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+    } finally { db.close(); }
+}
+
 function voiceReset() {
     const state = voiceSession;
     if (!state) return;
