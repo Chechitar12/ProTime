@@ -17,6 +17,8 @@ function geoInit(form) {
     update();
 }
 let mapView=null,mapMode='heat';
+const mapFilters={desde:'',hasta:'',parcela:'',tipo:'',estado:''};
+const mapDateFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'});
 function mapDispose(){
     mapView?.observer?.disconnect();
     mapView?.googleHandle?.destroy();
@@ -33,31 +35,77 @@ const mapHours=x=>{
     return Number.isFinite(start)&&Number.isFinite(end)?Math.max(0,(end-start)/3600000)*Number(x.trabajadores||0):0;
 };
 const mapColor=h=>h<50?'low':h<100?'medium':'high';
+const mapParcelKey=row=>Parcelas.codigo(row.parcela)||String(row.parcela??'').trim();
+const mapParcelName=key=>/^P\d+$/.test(key)?`Parcela ${key.slice(1)}`:key;
+const mapState=row=>String(row.validacionEstado||row.estado||'');
+function mapRecordDate(row){
+    const value=row.fechaRegistro||row.inicio;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value||''))return value;
+    const date=new Date(value);
+    if(!value||!Number.isFinite(date.getTime()))return '';
+    const parts=mapDateFormatter.formatToParts(date);
+    return ['year','month','day'].map(type=>parts.find(part=>part.type===type).value).join('-');
+}
+function mapFilterOptions(values,selected,label=value=>value){
+    return '<option value="">Todos</option>'+[...new Set(values.filter(Boolean).map(String))]
+        .sort((a,b)=>a.localeCompare(b,'es',{numeric:true}))
+        .map(value=>`<option value="${webEsc(value)}" ${value===selected?'selected':''}>${webEsc(label(value))}</option>`).join('');
+}
+function mapApplyFilters(view){
+    const invalid=mapFilters.desde&&mapFilters.hasta&&mapFilters.desde>mapFilters.hasta;
+    document.getElementById('mapFilterError').textContent=invalid?'La fecha inicial debe ser anterior o igual a la fecha final.':'';
+    const matches=invalid?[]:view.all.filter(row=>{
+        const day=mapRecordDate(row);
+        return (!mapFilters.desde||(day&&day>=mapFilters.desde))&&(!mapFilters.hasta||(day&&day<=mapFilters.hasta))&&
+            (!mapFilters.parcela||mapParcelKey(row)===mapFilters.parcela)&&(!mapFilters.tipo||String(row.tipo)===mapFilters.tipo)&&
+            (!mapFilters.estado||mapState(row)===mapFilters.estado);
+    });
+    view.rows=matches.filter(row=>mapCoords(row));
+    view.parcels=Parcelas.codigos.filter(code=>!mapFilters.parcela||mapFilters.parcela===code).map(code=>{
+        const location=Parcelas.ubicacion(code);
+        return {label:mapParcelName(code),lat:location.latitud,lon:location.longitud};
+    });
+    const pending=matches.length-view.rows.length;
+    const pendingNote=document.getElementById('mapPending');
+    pendingNote.hidden=!pending;
+    pendingNote.textContent=`${pending} incidencia(s) con ubicación pendiente o no válida.`;
+    document.querySelector('.map-sidebar').innerHTML=`<b>${view.rows.length} incidencia(s) con ubicación</b>${view.rows.map(row=>{
+        const hours=mapHours(row);
+        return `<button type="button" class="map-item" data-map-id="${webEsc(row.id)}"><span class="map-dot ${mapColor(hours)}"></span><span><strong>${webEsc(row.id)} · ${webEsc(row.parcela||'Sin parcela')}</strong><small>${webEsc(row.tipo||'Incidencia')} · ${hours.toFixed(2)} HH</small></span></button>`;
+    }).join('')||'<p>No hay incidencias con ubicación para estos filtros.</p>'}`;
+    if(view.googleHandle){
+        view.googleHandle.setData(view.rows,view.parcels);
+    }else{
+        mapFit(view,document.getElementById('incidentMap'));
+        mapDraw();
+    }
+}
 function mapaIncidencias(){
     mapDispose();
-    const all=Incidencias.all(),rows=all.filter(x=>mapCoords(x)),pending=all.length-rows.length;
+    const all=Incidencias.all();
     app.innerHTML=`${internalHeader('Mapa de incidencias')}<main class="map-page"><h1>Mapa de calor de incidencias</h1>
         <p>Identifica las zonas de mayor afectación. Toca un punto o selecciona una incidencia para ver el detalle.</p>
+        <form class="map-filters" aria-label="Filtros de incidencias">
+            <label>Fecha desde<input type="date" name="desde" value="${webEsc(mapFilters.desde)}"></label>
+            <label>Fecha hasta<input type="date" name="hasta" value="${webEsc(mapFilters.hasta)}"></label>
+            <label>Parcela<select name="parcela">${mapFilterOptions([...Parcelas.codigos,...all.map(mapParcelKey)],mapFilters.parcela,mapParcelName)}</select></label>
+            <label>Tipo de incidencia<select name="tipo">${mapFilterOptions(all.map(row=>row.tipo),mapFilters.tipo)}</select></label>
+            <label>Estado<select name="estado">${mapFilterOptions(all.map(mapState),mapFilters.estado)}</select></label>
+            <button type="reset">Limpiar filtros</button>
+        </form><p id="mapFilterError" class="map-filter-error" role="status"></p>
         <div class="map-view-toolbar"><div class="map-view-switch" role="group" aria-label="Visualización del mapa">
         <button type="button" data-map-mode="heat" aria-pressed="${mapMode==='heat'}">◉ Mapa de calor</button>
         <button type="button" data-map-mode="markers" aria-pressed="${mapMode==='markers'}">⌖ Marcadores</button></div>
         <div class="map-heat-legend"><span>Menor impacto</span><i aria-hidden="true"></i><span>Mayor impacto</span></div></div>
-        <p class="map-heat-explanation">El calor acumula las horas-hombre de incidencias próximas. Es una influencia visual, no el límite de la parcela. Los puntos conservan el color individual de cada incidencia.</p>
-        <div class="map-legend"><span><i class="low"></i>Menos de 50 h</span><span><i class="medium"></i>50 a menos de 100 h</span><span><i class="high"></i>100 h o más</span></div>
-        ${pending?`<p class="map-pending" role="status">${pending} incidencia(s) con ubicación pendiente o no válida. Los registros históricos se conservan sin modificar.</p>`:''}
+        <p class="map-heat-explanation">El calor acumula las horas-hombre de incidencias próximas. Cada marcador muestra la afectación de su incidencia.</p>
+        <div class="map-legend" aria-label="Horas-hombre por incidencia"><span><i class="low"></i>Menos de 50 HH</span><span><i class="medium"></i>50 a menos de 100 HH</span><span><i class="high"></i>100 HH o más</span></div>
+        <p id="mapPending" class="map-pending" role="status" hidden></p>
         <p id="mapProviderStatus" class="map-provider-status" role="status"></p>
         <div class="map-layout"><div id="incidentMap" class="incident-map" aria-label="Mapa de incidencias"></div>
-        <aside class="map-sidebar"><b>${rows.length} incidencia(s) con ubicación</b>${rows.length?rows.map(x=>`<button type="button" class="map-item" data-map-id="${webEsc(x.id)}"><span class="map-dot ${mapColor(mapHours(x))}"></span><span><strong>${webEsc(x.id)} · ${webEsc(x.parcela||'Sin parcela')}</strong><small>${webEsc(x.tipo||'Incidencia')} · ${mapHours(x).toFixed(2)} h</small></span></button>`).join(''):'<p>Aún no hay incidencias con coordenadas. Selecciona una parcela configurada al registrar una nueva incidencia.</p>'}</aside></div>
+        <aside class="map-sidebar" aria-live="polite"></aside></div>
         <p class="map-note">El mapa base requiere internet. Las incidencias y sus coordenadas permanecen guardadas localmente.</p></main>`;
-    // El centro vacío es solo una vista inicial, nunca una ubicación de incidencia.
     const defaultCenter=Parcelas.ubicacion('P61');
-    const first=mapCoords(rows[0])||{lat:defaultCenter.latitud,lon:defaultCenter.longitud};
-    mapView={center:first,zoom:rows.length>1?10:14,rows,provider:'osm',mode:mapMode};
-    if(rows.length>1){let lats=rows.map(x=>mapCoords(x).lat),lons=rows.map(x=>mapCoords(x).lon);
-        mapView.center={lat:(Math.min(...lats)+Math.max(...lats))/2,lon:(Math.min(...lons)+Math.max(...lons))/2};
-        const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lons)-Math.min(...lons));
-        mapView.zoom=Math.max(3,Math.min(15,Math.floor(Math.log2(80/Math.max(.005,spread)))));
-    }
+    mapView={center:{lat:defaultCenter.latitud,lon:defaultCenter.longitud},zoom:14,all,rows:[],parcels:[],provider:'osm',mode:mapMode};
     const view=mapView,el=document.getElementById('incidentMap');
     el.dataset.mode=mapMode;
     document.querySelectorAll('[data-map-mode]').forEach(button=>button.onclick=()=>{
@@ -71,31 +119,44 @@ function mapaIncidencias(){
     document.querySelector('.map-heat-legend').hidden=mapMode!=='heat';
     document.querySelector('.map-heat-explanation').hidden=mapMode!=='heat';
     mapOsmMount(view);
-    document.querySelectorAll('[data-map-id]').forEach(b=>b.onclick=()=>{
-        const row=rows.find(x=>x.id===b.dataset.mapId);if(!row)return;
+    const form=document.querySelector('.map-filters');
+    form.onsubmit=event=>event.preventDefault();
+    form.onchange=event=>{
+        mapFilters[event.target.name]=event.target.value;
+        mapApplyFilters(view);
+    };
+    form.onreset=event=>{
+        event.preventDefault();
+        for(const name of Object.keys(mapFilters))form.elements[name].value=mapFilters[name]='';
+        mapApplyFilters(view);
+    };
+    mapApplyFilters(view);
+    document.querySelector('.map-sidebar').onclick=event=>{
+        const button=event.target.closest('[data-map-id]');
+        const row=view.rows.find(item=>item.id===button?.dataset.mapId);if(!row)return;
         if(view.provider==='google'){view.googleHandle?.focus(row.id);return;}
         view.center=mapCoords(row);mapDraw();mapPopup(row);
-    });
+    };
     view.observer=new ResizeObserver(()=>{if(mapView===view&&view.provider==='osm')mapDraw()});
     view.observer.observe(el);
     if(PROTIME_MAP_CONFIG.apiKey.trim())mapGoogleMount(view);
     else document.getElementById('mapProviderStatus').textContent='Mapa base: OpenStreetMap.';
 }
+function mapFit(view,el){
+    const points=[...view.rows.map(mapCoords),...view.parcels].map(location=>mapProject(location,0));
+    if(!points.length)return;
+    const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
+    const minY=Math.min(...points.map(p=>p.y)),maxY=Math.max(...points.map(p=>p.y));
+    const box=el.getBoundingClientRect();
+    view.center=mapUnproject({x:(minX+maxX)/2,y:(minY+maxY)/2},0);
+    view.zoom=Math.max(2,Math.min(17,Math.floor(Math.min(
+        Math.log2(Math.max(64,box.width-110)/Math.max(.0001,maxX-minX)),
+        Math.log2(Math.max(64,box.height-140)/Math.max(.0001,maxY-minY))))));
+}
 function mapOsmMount(view){
     const el=document.getElementById('incidentMap');if(!el||mapView!==view)return;
     view.provider='osm';el.dataset.provider='osm';
     el.innerHTML='<div class="map-tiles"></div><canvas class="map-heat" aria-hidden="true"></canvas><div class="map-pins"></div><div class="map-controls"><button id="mapPlus" aria-label="Acercar">+</button><button id="mapMinus" aria-label="Alejar">−</button></div><div class="map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> colaboradores</div>';
-    if(!view.fitted&&view.rows.length){
-        const points=view.rows.map(row=>mapProject(mapCoords(row),0));
-        const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
-        const minY=Math.min(...points.map(p=>p.y)),maxY=Math.max(...points.map(p=>p.y));
-        const box=el.getBoundingClientRect();
-        view.center=mapUnproject({x:(minX+maxX)/2,y:(minY+maxY)/2},0);
-        view.zoom=Math.max(2,Math.min(17,Math.floor(Math.min(
-            Math.log2(Math.max(64,box.width-100)/Math.max(.0001,maxX-minX)),
-            Math.log2(Math.max(64,box.height-100)/Math.max(.0001,maxY-minY))))));
-        view.fitted=true;
-    }
     el.querySelector('#mapPlus').onclick=()=>{mapView.zoom=Math.min(18,mapView.zoom+1);mapDraw()};
     el.querySelector('#mapMinus').onclick=()=>{mapView.zoom=Math.max(2,mapView.zoom-1);mapDraw()};
     el.onwheel=e=>{if(view.provider!=='osm')return;e.preventDefault();mapView.zoom=Math.max(2,Math.min(18,mapView.zoom+(e.deltaY<0?1:-1)));mapDraw()};
@@ -125,7 +186,7 @@ async function mapGoogleMount(view){
         if(mapView!==view||failed){handle?.destroy();return;}
         view.googleHandle=handle;view.provider='google';el.dataset.provider='google';
         el.querySelectorAll(':scope>.map-tiles,:scope>.map-heat,:scope>.map-pins,:scope>.map-controls,:scope>.map-attribution,:scope>.map-popup').forEach(layer=>{layer.hidden=true});
-        status.textContent='Mapa base: Google Maps · coordenadas guardadas de cada incidencia.';
+        status.textContent='Vista satelital de Google Maps.';
     }catch(_){fallback()}
 }
 function mapProject(c,z){const lat=Math.max(-85,Math.min(85,c.lat))*Math.PI/180;
@@ -145,12 +206,19 @@ function mapDraw(){
         img.style.left=(tx*256-c.x+width/2)+'px';img.style.top=(ty*256-c.y+height/2)+'px';
         img.src=`https://tile.openstreetmap.org/${z}/${((tx%count)+count)%count}/${ty}.png`;tiles.append(img);
     }
+    for(const parcel of mapView.parcels){
+        const point=mapProject(parcel,z);
+        const label=document.createElement('span');
+        label.className='map-parcel-label';label.textContent=parcel.label;
+        label.style.left=(point.x-c.x+width/2)+'px';label.style.top=(point.y-c.y+height/2)+'px';
+        pins.append(label);
+    }
     for(const x of mapView.rows){const p=mapProject(mapCoords(x),z),h=mapHours(x);
         let dx=p.x-c.x;if(dx>world/2)dx-=world;if(dx< -world/2)dx+=world;
         const px=dx+width/2,py=p.y-c.y+height/2;
         if(px< -40||px>width+40||py< -40||py>height+40)continue;
-        const pin=document.createElement('button');pin.type='button';pin.className=`map-pin ${mapColor(h)}`;
-        pin.style.left=px+'px';pin.style.top=py+'px';pin.setAttribute('aria-label',`${x.id}, ${x.parcela||'Sin parcela'}, ${x.tipo||'Incidencia'}, ${h.toFixed(2)} horas-hombre`);
+        const pin=mapMarkerButton(x,h,'map-pin');
+        pin.style.left=px+'px';pin.style.top=py+'px';
         pin.title=`${x.tipo||'Incidencia'} · ${h.toFixed(2)} h`;pin.dataset.id=x.id;pin.onclick=()=>mapPopup(x,pin);pins.append(pin);
     }
     const heat=el.querySelector('.map-heat');heat.hidden=mapView.mode!=='heat';
@@ -160,12 +228,21 @@ function mapDraw(){
         return {x:dx+width/2,y:pixel.y-c.y+height/2,hours:location.hours};
     }),width,height);
 }
+function mapMarkerButton(row,hours,className){
+    const pin=document.createElement('button');
+    pin.type='button';pin.className=`${className} ${mapColor(hours)}`;
+    const value=String(Number(hours.toFixed(2)));
+    pin.setAttribute('aria-label',`${row.id}, ${row.parcela||'Sin parcela'}, ${value} horas-hombre`);
+    pin.innerHTML=`<span class="map-pin-face"><b>${value}</b><small>HH</small></span>`;
+    return pin;
+}
 function mapPopup(x,anchor){
     document.querySelector('.map-popup')?.remove();
     const map=document.querySelector('#incidentMap');if(!map)return;
     const popup=document.createElement('div');popup.className='map-popup';
     popup.setAttribute('role','dialog');popup.setAttribute('aria-label','Detalle de '+x.id);
-    popup.innerHTML=`<button class="map-popup-close" aria-label="Cerrar detalle">×</button>${mapPopupContent(x)}`;
+    popup.innerHTML='<button class="map-popup-close" aria-label="Cerrar detalle">×</button>';
+    popup.append(mapPopupContent(x));
     const box=map.getBoundingClientRect(),pin=anchor||[...map.querySelectorAll('.map-pin')].find(b=>b.dataset.id===x.id);
     let px=pin?Number.parseFloat(pin.style.left):box.width/2,py=pin?Number.parseFloat(pin.style.top):box.height/2;
     map.append(popup);popup.style.transform='none';
@@ -176,10 +253,15 @@ function mapPopup(x,anchor){
 }
 function mapPopupContent(x){
     const hours=mapHours(x),estado=x.validacionEstado?`${x.estado||'—'} · ${x.validacionEstado}`:x.estado||'—';
-    return `<div class="map-details"><strong>${webEsc(x.id)}</strong><dl>
+    const card=document.createElement('div');
+    card.className=`map-details ${mapColor(hours)}`;
+    card.innerHTML=`<header class="map-detail-heading"><strong>${webEsc(x.id)}</strong><h2>${webEsc(x.tipo||'Incidencia')}</h2></header><dl>
         <dt>Parcela</dt><dd>${webEsc(x.parcela||'—')}</dd>
-        <dt>Tipo</dt><dd>${webEsc(x.tipo||'—')}</dd>
-        <dt>Descripción</dt><dd class="map-description">${webEsc(x.descripcion||'—')}</dd>
+        <dt>Área</dt><dd>${webEsc(x.area||'—')}</dd>
         <dt>Estado</dt><dd>${webEsc(estado)}</dd>
-        <dt>Horas-hombre afectadas</dt><dd><span class="web-impact impact-${mapColor(hours)}">${hours.toFixed(2)} h</span></dd></dl></div>`;
+        <dt>Afectación</dt><dd><span class="web-impact impact-${mapColor(hours)}">${hours.toFixed(2)} HH</span></dd>
+        <dt>Descripción</dt><dd class="map-description">${webEsc(x.descripcion||'—')}</dd></dl>
+        <button type="button" class="map-open-incident">Ver incidencia <span aria-hidden="true">›</span></button>`;
+    card.querySelector('.map-open-incident').onclick=()=>detalleInc(x.id);
+    return card;
 }

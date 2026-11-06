@@ -16,11 +16,11 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
             qa.installGoogle=()=>{
                 class MockMap {constructor(el,opts){this.el=el;this.options=opts;this.zoom=opts.zoom;qa.maps.push(this);this.pane=document.createElement('div');el.append(this.pane)}fitBounds(b){this.bounds=b}panTo(p){this.position=p}getZoom(){return this.zoom}setZoom(z){this.zoom=z}getDiv(){return this.el}getCenter(){return this.options.center}}
                 class OverlayView {setMap(map){this.map=map;if(map){this.onAdd();this.draw()}else this.onRemove()}getPanes(){return {overlayLayer:this.map.pane}}getProjection(){return {fromLatLngToDivPixel:c=>({x:(typeof c.lng==='function'?c.lng():c.lng)*1000,y:(typeof c.lat==='function'?c.lat():c.lat)*-1000})}}}
-                class Marker {constructor(opts){Object.assign(this,opts);qa.markers.push(this);opts.map.el.append(opts.content)}addListener(event,fn){this.click=fn}}
-                class InfoWindow {constructor(){qa.popups.push(this)}setContent(c){this.content=c}open(o){this.options=o}close(){this.closed=true}}
+                class Marker {constructor(opts){this.content=opts.content;Object.assign(this,opts);qa.markers.push(this);opts.map.el.append(opts.content)}set map(value){this.currentMap=value;if(!value)this.content.remove()}get map(){return this.currentMap}}
+                class InfoWindow {constructor(){qa.popups.push(this)}setContent(c){this.content?.remove();this.content=c}open(o){this.options=o;o.map.el.append(this.content)}close(){this.content?.remove()}}
                 window.google={maps:{Map:MockMap,marker:{AdvancedMarkerElement:Marker},InfoWindow,OverlayView,LatLng:class{constructor(lat,lng){this.lat=()=>lat;this.lng=()=>lng}},
                     LatLngBounds:class{constructor(){this.points=[]}extend(p){this.points.push(p)}},
-                    event:{addListenerOnce(obj,name,fn){fn()},clearInstanceListeners(){}}}};
+                    event:{addListenerOnce(obj,name,fn){fn();return {remove(){}}},clearInstanceListeners(){}}}};
             };
         `
     },async ({run,until,command}) => {
@@ -60,6 +60,20 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         assert.equal(await run('document.querySelectorAll(".map-pin").length'),4);
         assert(await run("document.querySelector('.map-pending').textContent.includes('2 incidencia')"));
         for(const color of ['low','medium','high'])assert(await run(`!!document.querySelector('.map-pin.${color}')`));
+        assert.equal(await run("document.querySelectorAll('.map-parcel-label').length"),3);
+        assert(await run("[...document.querySelectorAll('.map-pin.high')].some(pin=>pin.textContent.includes('120HH'))"));
+        await run(`window.setMapFilter=(name,value)=>{
+            const input=document.querySelector('.map-filters').elements[name];
+            input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));
+        };setMapFilter('parcela','P64');setMapFilter('tipo','Histórico GPS');setMapFilter('estado','FINALIZADA');
+        setMapFilter('desde','2026-10-30');setMapFilter('hasta','2026-10-30');`);
+        assert.deepEqual(await run('mapView.rows.map(row=>row.id)'),['INC-OLD']);
+        assert.equal(await run("document.querySelector('.map-parcel-label').textContent"),'Parcela 64');
+        await run("setMapFilter('desde','2026-10-31')");
+        assert(await run("document.querySelector('#mapFilterError').textContent.length>0"));
+        assert.equal(await run('mapView.rows.length'),0);
+        await run("document.querySelector('.map-filters').reset()");
+        assert.equal(await run('mapView.rows.length'),4);
         assert.equal(await run('mapView.mode'),'heat');
         assert(await run("document.querySelector('.map-heat').width>1"));
         await run("document.querySelector('[data-map-mode=markers]').click()");
@@ -81,6 +95,9 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
             const shot=await command('Page.captureScreenshot',{format:'png'});
             fs.writeFileSync(path.join(process.env.PROTIME_QA_OUTPUT,'protime-map.png'),Buffer.from(shot.data,'base64'));
         }
+        await run("document.querySelector('.map-open-incident').click()");
+        assert.equal(await run('screen'),'reportes');
+        assert(await run("document.querySelector('.report-detail').textContent.includes('Coordenada original')"));
         // Empty maps remain valid, and opening a map never backfills missing coordinates.
         await run("DB.set('pt_incidencias_v3',[pendingOld]);go('mapaIncidencias')");
         assert.equal(await run('document.querySelectorAll(".map-pin").length'),0);
@@ -92,18 +109,25 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         // Test the optional Google integration without sending a request to Google.
         await run("qa.installGoogle();DB.set('pt_incidencias_v3',[old,{...old,id:'INC-P64',parcela:'Parcela 64',ubicacion:Parcelas.ubicacion('P64')}]);go('mapaIncidencias')");
         await until("mapView?.provider==='google'");
+        assert.equal(await run('qa.maps.at(-1).options.mapTypeId'),'satellite');
+        assert.equal(await run("document.querySelectorAll('.map-google-host .map-parcel-label').length"),3);
         await until("document.querySelector('.map-google-host .map-heat')?.width>1");
         assert(!await run("document.querySelector('.map-google-host .map-heat').hidden"));
         await run("document.querySelector('[data-map-mode=markers]').click()");
         assert(await run("document.querySelector('.map-google-host .map-heat').hidden"));
         await run("document.querySelector('[data-map-mode=heat]').click()");
         assert(!await run("document.querySelector('.map-google-host .map-heat').hidden"));
-        assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-P64')).position.lat"),-8.5456913);
-        assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-P64')).position.lng"),-78.6505618);
-        assert.equal(await run("qa.markers.find(m=>m.title.includes('INC-OLD')).position.lat"),-8.54);
+        assert.equal(await run("qa.markers.find(m=>m.title?.includes('INC-P64')).position.lat"),-8.5456913);
+        assert.equal(await run("qa.markers.find(m=>m.title?.includes('INC-P64')).position.lng"),-78.6505618);
+        assert.equal(await run("qa.markers.find(m=>m.title?.includes('INC-OLD')).position.lat"),-8.54);
+        await run("setMapFilter('parcela','P61')");
+        assert.equal(await run("document.querySelectorAll('.map-google-pin').length"),0);
+        assert.equal(await run("document.querySelector('.map-google-host .map-parcel-label').textContent"),'Parcela 61');
+        await run("document.querySelector('.map-filters').reset()");
         await run("document.querySelector('[data-map-id=INC-P64]').click()");
-        assert(await run("qa.popups.at(-1).content.includes('INC-P64')"));
-        await run("go('registro')");
+        assert(await run("qa.popups.at(-1).content.textContent.includes('INC-P64')"));
+        await run("document.querySelector('.map-google-host .map-open-incident').click()");
+        assert.equal(await run('screen'),'reportes');
         assert(await run('qa.markers.every(m=>m.map===null)'));
         assert.equal(await run('Incidencias.byId(old.id).ubicacion.latitud'),-8.54);
         await run(`qa.googleEnabled=false;

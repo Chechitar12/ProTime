@@ -58,7 +58,7 @@ const MapHeat = (() => {
     }
 
     function google(maps,map,rows) {
-        const locations=groups(rows);
+        let locations=groups(rows);
         class HeatOverlay extends maps.OverlayView {
             onAdd() {
                 this.canvas=document.createElement('canvas');this.canvas.className='map-heat';
@@ -86,6 +86,7 @@ const MapHeat = (() => {
             }
             onRemove() {cancelAnimationFrame(this.frame);this.canvas?.remove();this.canvas=null;}
             setVisible(visible) {this.visible=visible;if(this.canvas)this.canvas.hidden=!visible;}
+            setRows(rows) {locations=groups(rows);this.draw();}
         }
         const overlay=new HeatOverlay();overlay.setMap(map);
         return overlay;

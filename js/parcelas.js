@@ -15,5 +15,5 @@ const Parcelas = (() => {
         const coords = Object.hasOwn(catalogo,parcela)?catalogo[parcela]:null;
         return coords?{...coords,fuente:'catalogo_parcelas',parcela,versionCatalogo:'2026-11-03'}:null;
     }
-    return Object.freeze({codigo,ubicacion});
+    return Object.freeze({codigo,ubicacion,codigos:Object.freeze(Object.keys(catalogo))});
 })();
