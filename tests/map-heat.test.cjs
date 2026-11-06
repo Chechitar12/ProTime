@@ -11,7 +11,7 @@ test('heat accumulates actual hours at coincident coordinates without changing r
     const row={ubicacion:{latitud:-8.5456913,longitud:-78.6505618},inicio:'2026-11-03T08:00:00Z',fin:'2026-11-03T10:00:00Z',trabajadores:15};
     const rows=[row,{...row,id:'SECOND'},{...row,ubicacion:null}];
     const before=JSON.stringify(rows),groups=heat.groups(rows);
-    assert.equal(groups.length,1);assert.equal(groups[0].hours,60);assert.equal(groups[0].count,2);
+    assert.equal(groups.length,1);assert.equal(groups[0].hours,4);assert.equal(groups[0].count,2);
     assert.equal(groups[0].lat,-8.5456913);assert.equal(groups[0].lon,-78.6505618);
     assert.equal(JSON.stringify(rows),before);
 });
@@ -25,6 +25,9 @@ test('a low-impact incidence creates a visible diffuse green area; greater impac
     assert.equal(pixel(low,0,0)[3],0,'No fabricated heat far from incidents');
     const medium=pixel(heat.raster([{...point,hours:50}],400,400),100,100);
     const high=pixel(heat.raster([{...point,hours:100}],400,400),100,100);
+    const centerColor=hours=>pixel(heat.raster([{...point,hours}],400,400),100,100).slice(0,3);
+    assert.deepEqual(centerColor(49.99),center.slice(0,3));
+    assert.deepEqual(centerColor(99.99),medium.slice(0,3));
     assert(medium[0]>medium[1]&&medium[1]>medium[2]);
     assert(high[0]>high[1]*2&&high[0]>high[2]*2);
     const accumulated=pixel(heat.raster([{...point,hours:30},{...point,hours:30}],400,400),100,100);

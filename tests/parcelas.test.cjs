@@ -8,7 +8,15 @@ const helpers = vm.runInNewContext(fs.readFileSync(path.join(root,'js/parcelas.j
     fs.readFileSync(path.join(root,'js/mapa.js'),'utf8')+';({Parcelas,mapCoords,mapHours,mapColor});');
 
 test('only the exact approved parcel catalogue is assigned, including validated P64', () => {
-    for (const [code,lat,lon] of [['P61',-8.520616,-78.732651],['P62',-8.550790804,-78.65676825],['P64',-8.5456913,-78.6505618]]) {
+    const expected = [
+        ['P61',-8.520616,-78.732651], ['P62',-8.550790804,-78.65676825], ['P64',-8.5456913,-78.6505618],
+        ['P66',-8.525856,-78.736292], ['P67',-8.529746,-78.724780], ['P68',-8.534171,-78.729616],
+        ['P69',-8.536455,-78.734415], ['P70',-8.536848,-78.718392], ['P81',-8.544882,-78.648746],
+        ['P82',-8.544967,-78.649787], ['P83',-8.543854,-78.650351], ['P84',-8.543507,-78.651454],
+        ['P85',-8.544138,-78.647735], ['P86',-8.543204,-78.646914]
+    ];
+    assert.deepEqual(Array.from(helpers.Parcelas.codigos), expected.map(([code])=>code));
+    for (const [code,lat,lon] of expected) {
         for (const label of [code,'Parcela '+code.slice(1),code.toLowerCase()]) {
             const result = helpers.Parcelas.ubicacion(label);
             assert.equal(result.latitud,lat);assert.equal(result.longitud,lon);assert.equal(result.parcela,code);

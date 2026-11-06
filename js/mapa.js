@@ -30,10 +30,21 @@ const mapCoords=x=>{
     const lat=Number(c.latitud),lon=Number(c.longitud);
     return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=85&&Math.abs(lon)<=180?{lat,lon}:null;
 };
-const mapHours=x=>{
-    const start=new Date(x.inicio).getTime(),end=x.fin?new Date(x.fin).getTime():Date.now();
-    return Number.isFinite(start)&&Number.isFinite(end)?Math.max(0,(end-start)/3600000)*Number(x.trabajadores||0):0;
-};
+function mapElapsed(row){
+    if(!row.inicio)return null;
+    const start=new Date(row.inicio).getTime();
+    const end=row.fin?new Date(row.fin).getTime():Date.now();
+    if(!Number.isFinite(start)||!Number.isFinite(end))return null;
+    return Math.max(0,end-start);
+}
+function mapDuration(row){
+    const elapsed=mapElapsed(row);
+    if(elapsed===null)return '—';
+    const minutes=Math.floor(elapsed/60000);
+    return `${Math.floor(minutes/60)}:${String(minutes%60).padStart(2,'0')}`;
+}
+const mapDurationHours=row=>(mapElapsed(row)??0)/3600000;
+const mapHours=row=>(mapElapsed(row)??0)*Number(row.trabajadores||0)/3600000;
 const mapColor=h=>h<50?'low':h<100?'medium':'high';
 const mapParcelKey=row=>Parcelas.codigo(row.parcela)||String(row.parcela??'').trim();
 const mapParcelName=key=>/^P\d+$/.test(key)?`Parcela ${key.slice(1)}`:key;
@@ -70,8 +81,8 @@ function mapApplyFilters(view){
     pendingNote.hidden=!pending;
     pendingNote.textContent=`${pending} incidencia(s) con ubicación pendiente o no válida.`;
     document.querySelector('.map-sidebar').innerHTML=`<b>${view.rows.length} incidencia(s) con ubicación</b>${view.rows.map(row=>{
-        const hours=mapHours(row);
-        return `<button type="button" class="map-item" data-map-id="${webEsc(row.id)}"><span class="map-dot ${mapColor(hours)}"></span><span><strong>${webEsc(row.id)} · ${webEsc(row.parcela||'Sin parcela')}</strong><small>${webEsc(row.tipo||'Incidencia')} · ${hours.toFixed(2)} HH</small></span></button>`;
+        const color=mapColor(mapDurationHours(row));
+        return `<button type="button" class="map-item" data-map-id="${webEsc(row.id)}"><span class="map-dot ${color}"></span><span><strong>${webEsc(row.id)} · ${webEsc(row.parcela||'Sin parcela')}</strong><small>${webEsc(row.tipo||'Incidencia')} · ${mapDuration(row)} h</small></span></button>`;
     }).join('')||'<p>No hay incidencias con ubicación para estos filtros.</p>'}`;
     if(view.googleHandle){
         view.googleHandle.setData(view.rows,view.parcels);
@@ -97,8 +108,8 @@ function mapaIncidencias(){
         <button type="button" data-map-mode="heat" aria-pressed="${mapMode==='heat'}">◉ Mapa de calor</button>
         <button type="button" data-map-mode="markers" aria-pressed="${mapMode==='markers'}">⌖ Marcadores</button></div>
         <div class="map-heat-legend"><span>Menor impacto</span><i aria-hidden="true"></i><span>Mayor impacto</span></div></div>
-        <p class="map-heat-explanation">El calor acumula las horas-hombre de incidencias próximas. Cada marcador muestra la afectación de su incidencia.</p>
-        <div class="map-legend" aria-label="Horas-hombre por incidencia"><span><i class="low"></i>Menos de 50 HH</span><span><i class="medium"></i>50 a menos de 100 HH</span><span><i class="high"></i>100 HH o más</span></div>
+        <p class="map-heat-explanation">El color del marcador indica la duración de su incidencia. El calor suma las horas de duración de incidencias próximas.</p>
+        <div class="map-legend" aria-label="Rangos de duración en horas"><span><i class="low"></i>Menos de 50 h</span><span><i class="medium"></i>Desde 50 y menos de 100 h</span><span><i class="high"></i>100 h o más</span></div>
         <p id="mapPending" class="map-pending" role="status" hidden></p>
         <p id="mapProviderStatus" class="map-provider-status" role="status"></p>
         <div class="map-layout"><div id="incidentMap" class="incident-map" aria-label="Mapa de incidencias"></div>
@@ -219,7 +230,7 @@ function mapDraw(){
         if(px< -40||px>width+40||py< -40||py>height+40)continue;
         const pin=mapMarkerButton(x,h,'map-pin');
         pin.style.left=px+'px';pin.style.top=py+'px';
-        pin.title=`${x.tipo||'Incidencia'} · ${h.toFixed(2)} h`;pin.dataset.id=x.id;pin.onclick=()=>mapPopup(x,pin);pins.append(pin);
+        pin.title=`${x.tipo||'Incidencia'} · ${mapDuration(x)} h · ${h.toFixed(2)} HH`;pin.dataset.id=x.id;pin.onclick=()=>mapPopup(x,pin);pins.append(pin);
     }
     const heat=el.querySelector('.map-heat');heat.hidden=mapView.mode!=='heat';
     if(mapView.mode==='heat')MapHeat.draw(heat,MapHeat.groups(mapView.rows).map(location=>{
@@ -230,10 +241,10 @@ function mapDraw(){
 }
 function mapMarkerButton(row,hours,className){
     const pin=document.createElement('button');
-    pin.type='button';pin.className=`${className} ${mapColor(hours)}`;
-    const value=String(Number(hours.toFixed(2)));
-    pin.setAttribute('aria-label',`${row.id}, ${row.parcela||'Sin parcela'}, ${value} horas-hombre`);
-    pin.innerHTML=`<span class="map-pin-face"><b>${value}</b><small>HH</small></span>`;
+    pin.type='button';pin.className=`${className} ${mapColor(mapDurationHours(row))}`;
+    const duration=mapDuration(row);
+    pin.setAttribute('aria-label',`${row.id}, ${row.parcela||'Sin parcela'}, duración ${duration}, afectación ${hours.toFixed(2)} horas-hombre`);
+    pin.innerHTML=`<span class="map-pin-face"><b>${duration}</b><small>h</small></span>`;
     return pin;
 }
 function mapPopup(x,anchor){
@@ -254,12 +265,13 @@ function mapPopup(x,anchor){
 function mapPopupContent(x){
     const hours=mapHours(x),estado=x.validacionEstado?`${x.estado||'—'} · ${x.validacionEstado}`:x.estado||'—';
     const card=document.createElement('div');
-    card.className=`map-details ${mapColor(hours)}`;
+    card.className=`map-details ${mapColor(mapDurationHours(x))}`;
     card.innerHTML=`<header class="map-detail-heading"><strong>${webEsc(x.id)}</strong><h2>${webEsc(x.tipo||'Incidencia')}</h2></header><dl>
         <dt>Parcela</dt><dd>${webEsc(x.parcela||'—')}</dd>
         <dt>Área</dt><dd>${webEsc(x.area||'—')}</dd>
         <dt>Estado</dt><dd>${webEsc(estado)}</dd>
-        <dt>Afectación</dt><dd><span class="web-impact impact-${mapColor(hours)}">${hours.toFixed(2)} HH</span></dd>
+        <dt>Duración</dt><dd>${mapDuration(x)} h</dd>
+        <dt>Afectación</dt><dd>${hours.toFixed(2)} HH</dd>
         <dt>Descripción</dt><dd class="map-description">${webEsc(x.descripcion||'—')}</dd></dl>
         <button type="button" class="map-open-incident">Ver incidencia <span aria-hidden="true">›</span></button>`;
     card.querySelector('.map-open-incident').onclick=()=>detalleInc(x.id);

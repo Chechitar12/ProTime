@@ -9,8 +9,19 @@ El único catálogo está en `js/parcelas.js`:
 | P61 | -8.520616 | -78.732651 |
 | P62 | -8.550790804 | -78.65676825 |
 | P64 · ubicación validada | -8.5456913 | -78.6505618 |
+| P66 | -8.525856 | -78.736292 |
+| P67 | -8.529746 | -78.724780 |
+| P68 | -8.534171 | -78.729616 |
+| P69 | -8.536455 | -78.734415 |
+| P70 | -8.536848 | -78.718392 |
+| P81 | -8.544882 | -78.648746 |
+| P82 | -8.544967 | -78.649787 |
+| P83 | -8.543854 | -78.650351 |
+| P84 | -8.543507 | -78.651454 |
+| P85 | -8.544138 | -78.647735 |
+| P86 | -8.543204 | -78.646914 |
 
-Se reconocen los códigos P61/P62/P64 y sus etiquetas Parcela 61/62/64. P64 utiliza exclusivamente la ubicación validada; cualquier otra variante queda fuera del catálogo hasta nueva instrucción. No hay geocodificación ni GPS que puedan sustituir estas coordenadas.
+Se reconocen los códigos de la tabla y sus etiquetas correspondientes, como `P66` y `Parcela 66`. P64 utiliza exclusivamente la ubicación validada.
 
 ## Registro e integridad
 
@@ -20,11 +31,11 @@ Se reconocen los códigos P61/P62/P64 y sus etiquetas Parcela 61/62/64. P64 util
 - Solo los registros nuevos reciben coordenadas del catálogo. No hay migraciones, sustituciones ni llamadas GPS después de guardar. Cambiar el catálogo, abrir el mapa o editar un registro histórico no recalcula sus coordenadas. Los históricos sin coordenadas continúan pendientes.
 - El mapa solo lee `ubicacion` del registro. Un registro histórico con GPS u otra coordenada válida se dibuja en esa posición original, incluso si difiere del catálogo nuevo.
 
-Los marcadores conservan los umbrales existentes de horas-hombre: verde por debajo de 50 h, amarillo desde 50 hasta menos de 100 h y rojo desde 100 h. El detalle muestra número, parcela, tipo, descripción, estado y horas-hombre afectadas. La lista lateral permite elegir registros que comparten exactamente la misma posición; no se desplazan marcadores para simular ubicaciones diferentes.
+El color del marcador corresponde a la duración que muestra en horas y minutos. Es verde por debajo de 50 h, amarillo desde 50 hasta menos de 100 h y rojo desde 100 h. El detalle muestra la duración y las horas-hombre afectadas por separado. La lista lateral permite elegir registros que comparten la misma posición.
 
 ## Mapa de calor
 
-La vista inicial muestra una capa de calor difuminada, con áreas verdes, amarillas y rojas según las horas-hombre acumuladas en las ubicaciones próximas. Las incidencias que comparten coordenadas suman sus horas para esta capa; los registros y los colores individuales permanecen intactos. La escala utiliza 50 h y 100 h como referencias de impacto, sin normalizar el registro mayor a rojo automáticamente. Incluso una incidencia de 0.06 h muestra una zona verde visible. La difusión visual no representa los límites reales de las parcelas.
+La capa de calor suma las horas de duración de incidencias próximas y usa los mismos rangos de color que los marcadores. Cada marcador se colorea según la duración de su propia incidencia.
 
 El selector **Mapa de calor / Marcadores** permite cambiar de vista. Los puntos pequeños del calor y la lista lateral abren el detalle individual; la vista de marcadores conserva los puntos de colores anteriores. El dibujo acompaña el desplazamiento y zoom tanto en Google Maps como en OpenStreetMap, funciona con los registros locales sin conexión y se elimina al salir de la pantalla.
 

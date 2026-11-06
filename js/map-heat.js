@@ -1,5 +1,5 @@
 /* Capa de calor compartida por Google Maps y el mapa offline.
-   Suma horas-hombre con un núcleo suave; nunca cambia las coordenadas guardadas. */
+   Acumula horas de duración de las incidencias. */
 const MapHeat = (() => {
     function groups(rows) {
         const locations = new Map();
@@ -7,7 +7,7 @@ const MapHeat = (() => {
             const coords = mapCoords(row);if (!coords) continue;
             const key = `${coords.lat}|${coords.lon}`;
             if (!locations.has(key)) locations.set(key,{...coords,hours:0,count:0});
-            const location = locations.get(key),hours = mapHours(row);
+            const location = locations.get(key),hours = mapDurationHours(row);
             location.hours += Number.isFinite(hours)?Math.max(0,hours):0;
             location.count++;
         }
@@ -17,7 +17,7 @@ const MapHeat = (() => {
     function raster(points,width,height) {
         // Media resolución para mantener fluidez al desplazar el mapa en móviles.
         const scale = .5,w = Math.max(1,Math.ceil(width*scale)),h = Math.max(1,Math.ceil(height*scale));
-        const density = new Float32Array(w*h),coverage = new Float32Array(w*h);
+        const density = new Float64Array(w*h),coverage = new Float32Array(w*h);
         const radius = Math.max(75,Math.min(125,width*.2))*scale;
         const edge = Math.exp(-4);
         for (const point of points) {
@@ -36,12 +36,11 @@ const MapHeat = (() => {
             }
         }
         const data = new Uint8ClampedArray(w*h*4);
-        const green=[30,194,104],amber=[255,190,24],red=[239,55,48];
+        const palette={low:[30,194,104],medium:[255,190,24],high:[239,55,48]};
         for (let i=0;i<density.length;i++) {
             if (!coverage[i]) continue;
-            const value=density[i],from=value<50?green:amber,to=value<50?amber:red;
-            const mix=value<50?Math.max(0,Math.min(1,(value-25)/25)):Math.min(1,(value-50)/50);
-            for (let channel=0;channel<3;channel++) data[i*4+channel]=from[channel]+(to[channel]-from[channel])*mix;
+            const color=palette[mapColor(density[i])];
+            data.set(color,i*4);
             data[i*4+3]=Math.round(coverage[i]*205);
         }
         return {width:w,height:h,data};

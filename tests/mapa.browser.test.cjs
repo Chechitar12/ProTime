@@ -31,7 +31,7 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
             DB.set('pt_incidencias_v3',[old,pendingOld]);
         `);
         const historical = await run('JSON.stringify(Incidencias.all())');
-        for(const [parcela,lat,lon] of [['Parcela 61',-8.520616,-78.732651],['Parcela 62',-8.550790804,-78.65676825],['Parcela 64',-8.5456913,-78.6505618]]) {
+        for(const [parcela,lat,lon] of [['Parcela 61',-8.520616,-78.732651],['Parcela 62',-8.550790804,-78.65676825],['Parcela 64',-8.5456913,-78.6505618],['Parcela 86',-8.543204,-78.646914]]) {
             await run("go('nuevo')");
             await run(`parcela.value='Parcela 61';parcela.dispatchEvent(new Event('change'));parcela.value=${JSON.stringify(parcela)};parcela.dispatchEvent(new Event('change'))`);
             assert.equal(await run('geoLatitud.value'),String(lat));
@@ -50,18 +50,20 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         await until("screen==='registro'");
         assert.equal(await run('Incidencias.all()[0].ubicacion'),null);
         assert.equal(await run('Incidencias.all()[0].ubicacionEstado'),'pendiente');
-        // Finalize the three known records with controlled hours; preserve the historic originals.
+        // Use durations of 48 h, 50 h, 100 h and 5 h 02 min to check the map bands.
         await run(`
             Incidencias.all().filter(x=>x.ubicacion?.fuente==='catalogo_parcelas').forEach((x,i)=>Incidencias.update(x.id,{
-                inicio:'2026-11-03T08:00:00Z',fin:'2026-11-03T10:00:00Z',estado:'FINALIZADA',trabajadores:[50,25,10][i]}));
+                inicio:'2026-11-03T08:00:00Z',fin:['2026-11-05T08:00:00Z','2026-11-05T10:00:00Z','2026-11-07T12:00:00Z','2026-11-03T13:02:00Z'][i],estado:'FINALIZADA',trabajadores:[3,25,10,10][i]}));
             go('mapaIncidencias');
         `);
         assert.equal(await run('JSON.stringify(Incidencias.all().filter(x=>[old.id,pendingOld.id].includes(x.id)))'),historical);
-        assert.equal(await run('document.querySelectorAll(".map-pin").length'),4);
+        assert.equal(await run('document.querySelectorAll(".map-pin").length'),5);
         assert(await run("document.querySelector('.map-pending').textContent.includes('2 incidencia')"));
         for(const color of ['low','medium','high'])assert(await run(`!!document.querySelector('.map-pin.${color}')`));
-        assert.equal(await run("document.querySelectorAll('.map-parcel-label').length"),3);
-        assert(await run("[...document.querySelectorAll('.map-pin.high')].some(pin=>pin.textContent.includes('120HH'))"));
+        assert.equal(await run("document.querySelectorAll('.map-parcel-label').length"),14);
+        assert(await run("[...document.querySelectorAll('.map-pin.low .map-pin-face b')].some(value=>value.textContent==='5:02')"));
+        assert.equal(await run("getComputedStyle(document.querySelector('.map-pin.high .map-pin-face'),'::before').animationIterationCount"),'infinite');
+        assert.equal(await run("getComputedStyle(document.querySelector('.map-pin.low .map-pin-face'),'::before').animationName"),'none');
         await run(`window.setMapFilter=(name,value)=>{
             const input=document.querySelector('.map-filters').elements[name];
             input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));
@@ -73,7 +75,12 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         assert(await run("document.querySelector('#mapFilterError').textContent.length>0"));
         assert.equal(await run('mapView.rows.length'),0);
         await run("document.querySelector('.map-filters').reset()");
-        assert.equal(await run('mapView.rows.length'),4);
+        assert.equal(await run('mapView.rows.length'),5);
+        await run("setMapFilter('parcela','P86')");
+        assert.deepEqual(await run('mapView.rows.map(row=>row.parcela)'),['Parcela 86']);
+        assert.equal(await run("document.querySelector('.map-pin.low .map-pin-face b').textContent"),'48:00');
+        assert.equal(await run('MapHeat.groups(mapView.rows)[0].hours'),48);
+        await run("document.querySelector('.map-filters').reset()");
         assert.equal(await run('mapView.mode'),'heat');
         assert(await run("document.querySelector('.map-heat').width>1"));
         await run("document.querySelector('[data-map-mode=markers]').click()");
@@ -110,7 +117,7 @@ test('parcel changes, persisted coordinates, pending parcels, map details and Go
         await run("qa.installGoogle();DB.set('pt_incidencias_v3',[old,{...old,id:'INC-P64',parcela:'Parcela 64',ubicacion:Parcelas.ubicacion('P64')}]);go('mapaIncidencias')");
         await until("mapView?.provider==='google'");
         assert.equal(await run('qa.maps.at(-1).options.mapTypeId'),'satellite');
-        assert.equal(await run("document.querySelectorAll('.map-google-host .map-parcel-label').length"),3);
+        assert.equal(await run("document.querySelectorAll('.map-google-host .map-parcel-label').length"),14);
         await until("document.querySelector('.map-google-host .map-heat')?.width>1");
         assert(!await run("document.querySelector('.map-google-host .map-heat').hidden"));
         await run("document.querySelector('[data-map-mode=markers]').click()");

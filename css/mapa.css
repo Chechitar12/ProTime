@@ -22,7 +22,7 @@
 .map-view-switch button:focus-visible {outline:3px solid #1386be;outline-offset:2px}
 .map-heat-legend {display:flex;gap:9px;align-items:center;font-size:11px;color:#54727e}
 .map-heat-legend[hidden] {display:none}
-.map-heat-legend i {display:block;width:145px;height:9px;border-radius:20px;background:linear-gradient(90deg,#1ec268,#ffbe18,#ef3730)}
+.map-heat-legend i {display:block;width:145px;height:9px;border-radius:20px;background:linear-gradient(90deg,#1ec268 0 33.33%,#ffbe18 33.33% 66.67%,#ef3730 66.67% 100%)}
 .map-page .map-heat-explanation {font-size:12px;line-height:1.6;margin:8px 0 12px;color:#607f8e;max-width:850px}
 .map-heat {position:absolute;pointer-events:none;z-index:1;image-rendering:auto}
 .map-pins {z-index:2}
@@ -38,9 +38,23 @@
 .incident-map .map-pin {transform:translate(-50%,-100%)}
 .map-google-pin {position:relative}
 .map-pin-face {
+    position:relative;
     display:grid;place-content:center;justify-items:center;line-height:1;gap:2px;
     min-width:42px;height:41px;padding:0 4px;background:white;color:#142c38;
     border:3px solid var(--map-impact);border-radius:50%;outline:1px solid white;font:inherit;
+}
+.map-pin.high .map-pin-face::before,.map-google-pin.high .map-pin-face::before {
+    content:'';position:absolute;inset:-3px;border:3px solid #ff1735;
+    border-radius:50%;box-shadow:0 0 8px #ff173580;
+    pointer-events:none;animation:map-impact-wave 1.6s ease-out infinite;
+}
+@keyframes map-impact-wave {
+    0% {transform:scale(1);opacity:1}
+    45% {opacity:.72}
+    90%,100% {transform:scale(1.95);opacity:0}
+}
+@media(prefers-reduced-motion:reduce) {
+    .map-pin.high .map-pin-face::before,.map-google-pin.high .map-pin-face::before {animation:none;opacity:0}
 }
 .map-pin-face b {font-size:12px}
 .map-pin-face small {font-size:9px;font-weight:700}
